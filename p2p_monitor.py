@@ -1,30 +1,24 @@
-﻿
-# p2p_dashboard.py
-# Единая страница: сверху панель фильтров, ниже 2 колонки (Binance / Bybit).
-# Усреднение по объявлениям №3–5, вывод топ-5 строк.
-# Поддержка куков через переменные окружения BINANCE_COOKIE / BYBIT_COOKIE.
+﻿# p2p_dashboard.py
+# Обновления:
+# - Дропдауны скрыты по умолчанию, открываются только по клику "Выбрать методы"
+# - Закрытие по повторному клику, по клику вне и по Esc
+# - "Подтвердить"/"Сбросить": сначала запрос/обновление, затем закрытие меню
+# - Поиск и множественный выбор плитками, зелёные акценты
+# - Bybit методы берутся из bybit_payment_methods.txt (формат: === UAH ===, далее "id name")
 
 import os
 import time
-import json
+import re
 import requests
-from flask import Flask, request, jsonify, Response, render_template_string
+from bs4 import BeautifulSoup
+from flask import Flask, request, jsonify, Response
 
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 
-# ------------------ Конфиг / куки ------------------
-BINANCE_COOKIE = os.getenv("BINANCE_COOKIE", "bnc-uuid=24e155f9-acda-4066-940b-4885f4bb5d9b; ref=1121500771; lang=ru-UA; language=ru-UA; "
-    "BNC_FV_KEY=3352998e0fcbaf35a8c1adc76cbdf4f92046cec1; se_gd=xkBEAQR9QBKDwhbYQUwogZZUwUA0QBXVlsSJYV091NRWgCFNWV9V1; "
-    "se_gsd=azM2GhpVJiklM1syJyUyGggnEAcODgVUVFVKWlFSVlNXElNT1; currentAccount=; BNC-Location=UA; "
-    "fiat-prefer-currency=UAH; common_fiat=%7B%22fiat%22%3A%22UAH%22%7D; userPreferredCurrency=USD_USD; theme=dark; "
-    "BNC_FV_KEY_T=101-5BcGU%2B7Q1RKn0%2FY2vL8HgC2L2xqiMTzra6691PF3IFbQYt7qfB2Yqcpd0IuJlgxPGAXg%2FpbITTLagrT66aKUYg%3D%3D-NL50styO1mk%2BRzolvgD8Kg%3D%3D-03; "
-    "BNC_FV_KEY_EXPIRE=1752798024475; se_sd=BQOBlUVwVBaU1cXcRDVkgZZFwBgwQERUVAHFQWk91NTVAF1NWVUV1; "
-    "s9r1=A249108022543F7B83C49D5E64EFAA72; r20t=web.F830508C564F161CCEAF32E6152960C1; r30t=1; cr00=2ED474164572CFD675135602B57A1F80; "
-    "d1og=web.320158455.046C0A4D0E9285D8658ECFD8924A9C5B; r2o1=web.320158455.B67C9FD63EF34576A7E1C7FA56440E71; "
-    "f30l=web.320158455.D7B6AB30BB93784A710A5F4093652523; logined=y; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%22320158455%22%2C%22first_id%22%3A%221980ece448a22b-0e104b4a3c8a8-26011151-3686400-1980ece448b17c0%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%2C%22%24latest_referrer%22%3A%22%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTk4MGVjZTQ0OGEyMmItMGUxMDRiNGEzYzhhOC0yNjAxMTE1MS0zNjg2NDAwLTE5ODBlY2U0NDhiMTdjMCIsIiRpZGVudGl0eV9sb2dpbl9pZCI6IjMyMDE1ODQ1NSJ9%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%24identity_login_id%22%2C%22value%22%3A%22320158455%22%7D%2C%22%24device_id%22%3A%2219812922cb61f0-0f815e9aa74ba48-26011151-3686400-19812922cb7f7f%22%7D; "
-    "p20t=web.320158455.E27540F2D9614B5553202B2505F87127; OptanonConsent=isGpcEnabled=0&datestamp=Thu+Jul+17+2025+22%3A11%3A25+GMT%2B0300+(%D0%92%D0%BE%D1%81%D1%82%D0%BE%D1%87%D0%BD%D0%B0%D1%8F+%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B0%2C+%D0%BB%D0%B5%D1%82%D0%BD%D0%B5%D0%B5+%D0%B2%D1%80%D0%B5%D0%BC%D1%8F)&version=202506.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=6d9ed745-85d2-457b-8d07-1040687ff23d&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=C0001%3A1%2CC0003%3A1%2CC0004%3A0%2CC0002%3A1&AwaitingReconsent=false")
-BYBIT_COOKIE   = os.getenv("BYBIT_COOKIE", """_ym_uid=1742585307975664233; _ym_d=1742585307; _abck=4EB8FFFE5FB66A20DA006F9F6774C9F9~0~YAAQDQxAFwKjj7CVAQAAFVD0vg0UQGnDQqqTBokasujKGB8D9RCNmT7vk+ldR+3B0sOTCaQWZHTDMwh+qDkBGXQelkdx2dxr8P2r5vtXEviP81hOX4X3TOgHmtY4seb3AyuO9rsXitcwldbgxrzbwD/T1ZnVxxSy30tnOT8mXwBasiFJOdOJWUP2GkEIuG0f2GoeS6VtAg40Wv+lAM3IbpPNRTw92F83bPWjIsaRJCETa55rvCakkUWeLnLDZOcYxMTqI3Ka8w+cySh8WJrEl9J3k5UDpk+Me0KPt2bCZtgsABsQYHfeJy/sMMCADA6qpGKB8mX9mhrH42jPvVOQtbK7zoxKbxvrP/IXbK1RnEJ/O+6UTw8xY+djjxg/087JBXDDaO3pC1cvLiWSj1Sja41vFnv/9fFWrhj8+BKl7gobhXPgeEgBFzXcVdlO9HF+2/brPWRZZbAsWNNqQ3Gd7g==~-1~-1~-1; _by_l_g_d=decd7e79-db40-af29-2ee9-4dd102e2e7a2; deviceId=ef9cacc7-a75b-3ca3-4588-1be6dd463c96; _ga=GA1.1.1823559572.1755113755; _tt_enable_cookie=1; _ttp=01K2JEX4FKY4K10RWFZ7N999G0_.tt.1; BYBIT_REG_REF_prod={"lang":"ru-UA","g":"decd7e79-db40-af29-2ee9-4dd102e2e7a2","referrer":"www.bybit.com/ru-RU/fiat/trade/otc?token=USDT&fiat=UAH&side=1&amount=20000&verifiedOnly=true&t=1755725246","source":"bybit.com","medium":"other","url":"https://www.bybit.com/ru-RU/p2p?token=USDT&fiat=UAH&side=1&amount=20000&verifiedOnly=true&t=1755725246","last_refresh_time":"Wed, 20 Aug 2025 21:30:14 GMT","ext_json":{"dtpid":null}}; tx_token_current=BNE; _ym_isad=1; cookies_uuid_report=0aed6f3c-45ae-4625-a5bb-efb2894179e0; first_collect=true; EO-Bot-Session=-n3l54HSyiMxKh-JfsBVAkszTpeFm6JfFu5tSnY3ce1H-UxrJJ_9o9tew34hXyoP; EO-Bot-SessionId=2964890993601779914; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%22500846094%22%2C%22first_id%22%3A%2219882adf8e58ae-02a5663075fde4a-26011151-3686400-19882adf8e6157b%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E5%BC%95%E8%8D%90%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC%22%2C%22%24latest_referrer%22%3A%22https%3A%2F%2Fchatgpt.com%2F%22%2C%22_a_u_v%22%3A%220.0.6%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTk4ODJhZGY4ZTU4YWUtMDJhNTY2MzA3NWZkZTRhLTI2MDExMTUxLTM2ODY0MDAtMTk4ODJhZGY4ZTYxNTdiIiwiJGlkZW50aXR5X2xvZ2luX2lkIjoiNTAwODQ2MDk0In0%3D%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%24identity_login_id%22%2C%22value%22%3A%22500846094%22%7D%7D; by_token_print=2a5df07cf6m0zgfdtem129scd1994a0c2; deviceCodeExpire=1755735912065; _gcl_au=1.1.648850041.1755113755.1864717054.1755735931.1755735931; secure-token=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1MDA4NDYwOTQsImIiOjAsInAiOjMsInVhIjoiIiwiZ2VuX3RzIjoxNzU1NzM1OTM3LCJleHAiOjE3NTU5OTUxMzcsIm5zIjoiIiwiZXh0Ijp7IlN0YXRpb24tVHlwZSI6IiIsIm1jdCI6IjE3NTU3MDc3ODMiLCJzaWQiOiJCWUJJVCJ9LCJkIjpmYWxzZSwic2lkIjoiQllCSVQifQ.TOuGbPYfwNjiR45dYkr3lXwSsBhocfOHwZTplnPqmIuPOQcUQVRpYsniIx_N6myq_XJ0S83W6QqCY76y8rklfQ; _by_l_g_d=decd7e79-db40-af29-2ee9-4dd102e2e7a2; __rtbh.uid=%7B%22eventType%22%3A%22uid%22%2C%22id%22%3A%22undefined%22%2C%22expiryDate%22%3A%222026-08-21T00%3A25%3A52.222Z%22%7D; __rtbh.lid=%7B%22eventType%22%3A%22lid%22%2C%22id%22%3A%22LEInhX0O0UgsKJzwAIJG%22%2C%22expiryDate%22%3A%222026-08-21T00%3A25%3A52.222Z%22%7D; EO-Bot-Token=t04GaLcA_AU2oqxk6ri6Bcnp3kfZSIHwk5BOJW2OlV7KJkZsbXXp-b6PKPxHqCRfavjA0GTFAq4EinVsZzouCL2PJe6-19rbd-wRE04ivLNZTvbHoavYFuU1RkRkg9fH3Rs2TcyPImUO8Gynw6hI3Wq-G3VFduh_hCkZL7hP-x32OhHuFjJjiyjfk6YNAfoIJ13xjIaiV2s_Y25RH7USCNQFtgdWaVxs1uEYuPrqI9HNGeqEm7wMtGU9gH-aqXqXb56TjSt5_b8eGMf9DsEh34dlKGtLp4xtO2q1UVNQC2gPNQTJaG7NXkSHv8D8lBHqVn55kMaGFjc_EAOkMfrsYfm5AScyJVDBu8V4RnB4UMDWkXzLTn_VOm0LlX1jlZWjZcX3LgtNGZuKr8*; trace_id_report=876e5a8d-efe0-4dd0-b9a1-24560bddf285; _ga_SPS4ND2MGC=GS2.1.s1755735838$o5$g1$t1755736781$j59$l0$h0; ttcsid=1755735917840::eGxBDPy7q6FwAoKKW4Ru.4.1755736781650; tx_token_time=1755736781861; trace_id_time=1755736781946; ttcsid_CMEEMQRC77UBHLCRLFPG=1755735917840::AYjyla4xpsz6_e8I8HOb.4.1755736782062""")
+# ------------------ Куки / заголовки ------------------
+BINANCE_COOKIE = os.getenv("BINANCE_COOKIE", "")
+BYBIT_COOKIE   = os.getenv("BYBIT_COOKIE", "")
 
 BINANCE_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 BYBIT_URL   = "https://www.bybit.com/x-api/fiat/otc/item/online"
@@ -51,11 +45,10 @@ BYBIT_HEADERS = {
 if BYBIT_COOKIE:
     BYBIT_HEADERS["cookie"] = BYBIT_COOKIE
 
-# ------------------ Вспомогательные ------------------
+# ------------------ Утилиты ------------------
 def _avg_3_5(prices):
     if len(prices) >= 5:
-        s = sum(prices[2:5]) / 3.0
-        return round(s, 6)
+        return round(sum(prices[2:5]) / 3.0, 6)
     return None
 
 def _fmt_float(x):
@@ -63,37 +56,26 @@ def _fmt_float(x):
         return float(x)
     except Exception:
         try:
-            return float(str(x).replace(",", "."))
+            return float(str(x).replace("\u00A0", "").replace(" ", "").replace(",", "."))
         except Exception:
             return None
 
-# ------------------ Binance fetch ------------------
-def fetch_binance(asset="USDT", fiat="UAH", side="SELL", pay_type="", amount="20000", rows=10, merchant=True):
-    """
-    side: SELL = вы продаёте актив, BUY = вы покупаете актив
-    pay_type: строка (например MONOBANK). Можно пусто — без фильтра.
-    amount: str|int
-    """
+# ------------------ Binance ------------------
+def fetch_binance(asset="USDT", fiat="UAH", side="SELL", pay_types=None, amount="20000", rows=10, merchant=True, page=1):
     payload = {
-        "asset": asset,
-        "fiat": fiat,
-        "merchantCheck": bool(merchant),
-        "page": 1,
-        "payTypes": [pay_type] if pay_type else [],
-        "publisherType": None,
-        "rows": int(rows),
-        "tradeType": side,            # SELL / BUY
-        "transAmount": str(amount),
+        "asset": asset, "fiat": fiat, "merchantCheck": bool(merchant),
+        "page": int(page), "payTypes": list(pay_types or []),
+        "publisherType": None, "rows": int(rows),
+        "tradeType": side, "transAmount": str(amount),
     }
     r = requests.post(BINANCE_URL, headers=BINANCE_HEADERS, json=payload, timeout=15)
     r.raise_for_status()
     js = r.json()
     if js.get("code") != "000000" or "data" not in js:
         raise RuntimeError(f"Binance API error: {js}")
-
-    data = js["data"][:5]  # первые 5 объявлений
+    data = js["data"]
     items, prices = [], []
-    for ad in data:
+    for ad in data[:5]:
         adv = ad.get("adv", {})
         seller = ad.get("advertiser", {}).get("nickName") or "-"
         price  = _fmt_float(adv.get("price"))
@@ -107,32 +89,43 @@ def fetch_binance(asset="USDT", fiat="UAH", side="SELL", pay_type="", amount="20
             "volume": adv.get("surplusAmount"),
         })
         prices.append(price)
+    return {"items": items, "prices": prices, "avg": _avg_3_5(prices), "raw": data}
 
-    avg = _avg_3_5(prices)
-    return {"items": items, "prices": prices, "avg": avg}
+def discover_binance_paytypes(asset="USDT", fiat="UAH", side="SELL", amount="20000", merchant=True, pages=3, rows=20):
+    seen = {}
+    for p in range(1, pages+1):
+        payload = {
+            "asset": asset, "fiat": fiat, "merchantCheck": bool(merchant),
+            "page": p, "payTypes": [], "publisherType": None,
+            "rows": int(rows), "tradeType": side, "transAmount": str(amount),
+        }
+        r = requests.post(BINANCE_URL, headers=BINANCE_HEADERS, json=payload, timeout=15)
+        if r.status_code != 200: break
+        js = r.json()
+        if js.get("code") != "000000": break
+        data = js.get("data", [])
+        if not data: break
+        for ad in data:
+            adv = ad.get("adv", {})
+            for tm in adv.get("tradeMethods", []) or []:
+                ident = (tm.get("identifier") or tm.get("payType") or "").strip()
+                name  = (tm.get("tradeMethodName") or tm.get("name") or ident).strip()
+                if ident: seen[ident] = name
+            for ident in ad.get("payTypes", []) or []:
+                if ident and ident not in seen: seen[ident] = ident
+    items = [{"id": k, "name": v} for k, v in seen.items()]
+    items.sort(key=lambda x: (x["name"].lower(), x["id"]))
+    return items
 
-# ------------------ Bybit fetch ------------------
+# ------------------ Bybit ------------------
 def fetch_bybit(token="USDT", fiat="UAH", side="SELL", payments=None, amount="20000", rows=10, verified=False):
-    """
-    side: SELL / BUY -> конвертируем в 0/1 для Bybit
-    payments: список строк. Для Bybit часто используются числовые идентификаторы методов (например '1','43',...),
-              можно передать пустой список/None — без фильтра.
-    verified: True -> authMaker=True
-    """
     side_map = {"SELL": "0", "BUY": "1"}
     payload = {
-        "tokenId": token,
-        "currencyId": fiat,
-        "payment": payments or [],
+        "tokenId": token, "currencyId": fiat, "payment": payments or [],
         "side": side_map.get(side.upper(), "1"),
-        "size": str(rows),
-        "page": "1",
-        "amount": str(amount),
-        "authMaker": bool(verified),
-        "canTrade": False,
-        "shieldMerchant": False,
-        "reputation": False,
-        "country": ""
+        "size": str(rows), "page": "1",
+        "amount": str(amount), "authMaker": bool(verified),
+        "canTrade": False, "shieldMerchant": False, "reputation": False, "country": ""
     }
     r = requests.post(BYBIT_URL, headers=BYBIT_HEADERS, json=payload, timeout=15)
     r.raise_for_status()
@@ -154,61 +147,194 @@ def fetch_bybit(token="USDT", fiat="UAH", side="SELL", payments=None, amount="20
             "volume": ad.get("lastQuantity"),
         })
         prices.append(price)
+    return {"items": items, "prices": prices, "avg": _avg_3_5(prices)}
 
-    avg = _avg_3_5(prices)
-    return {"items": items, "prices": prices, "avg": avg}
+# ------------------ Google Finance ------------------
+GF_HEADERS = {
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+    "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+}
 
-# ------------------ API ------------------
+_num_re = re.compile(r"[-+]?\d{1,3}(?:[ \u00A0]?\d{3})*(?:[.,]\d+)?")
+
+def _num_to_float(s: str) -> float:
+    m = _num_re.search(s or "")
+    if not m:
+        raise ValueError(f"no number in '{s}'")
+    t = m.group(0).replace("\u00A0", " ").replace(" ", "")
+    if "," in t and "." in t:
+        t = t.replace(",", "")
+    else:
+        t = t.replace(",", ".")
+    return float(t)
+
+def _gf_price_direct(asset: str, fiat: str) -> tuple[float, str]:
+    A, F = asset.upper(), fiat.upper()
+    url  = f"https://www.google.com/finance/quote/{A}-{F}"
+    r = requests.get(url, headers=GF_HEADERS, timeout=12)
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text, "html.parser")
+    blk = soup.select_one(f'div[jscontroller="NdbN0c"][jsname="AS5Pxb"][data-source="{A}"][data-target="{F}"]')
+
+    # 1) строго берём data-last-price
+    if blk and blk.has_attr("data-last-price"):
+        return float(blk["data-last-price"]), url
+
+    # 2) fallback: видимый текст (может быть сломан локалью — используем только при отсутствии атрибута!)
+    if blk:
+        node = blk.select_one("div.YMlKec.fxKbKc") or blk.select_one("div.YMlKec")
+        if node and node.text:
+            return _num_to_float(node.get_text(" ", strip=True)), url
+
+    # 3) ещё один грубый запасной вариант
+    m = re.findall(r'data-last-price="([^"]+)"', r.text)
+    if m:
+        return float(m[-1]), url
+
+    # 4) совсем крайний случай
+    node = soup.select_one("div.YMlKec.fxKbKc") or soup.select_one("div.YMlKec")
+    if node and node.text:
+        return _num_to_float(node.get_text(" ", strip=True)), url
+
+    raise RuntimeError("GF: не удалось извлечь цену")
+
+def _gf_only_price(asset: str, fiat: str) -> float:
+    p, _ = _gf_price_direct(asset, fiat)
+    return p
+
+def fetch_gf(asset: str, fiat: str):
+    A, F = asset.upper(), fiat.upper()
+
+    # прямое чтение
+    direct_price, url = _gf_price_direct(A, F)
+
+    # кросс через USD для контроля
+    cross = None
+    try:
+        if A != "USD" and F != "USD":
+            a_usd = _gf_only_price(A, "USD")
+            usd_f = _gf_only_price("USD", F)
+            cross = a_usd * usd_f
+    except Exception:
+        cross = None
+
+    # проверка разумности диапазона (очень широкая)
+    def rng(a, f):
+        if f == "UAH":
+            return {
+                "USDT": (5, 200), "USDC": (5, 200), "DAI": (5, 200), "TUSD": (5, 200), "USD": (5, 200),
+                "BTC": (1e5, 1e8), "ETH": (5e3, 5e7), "BNB": (1e3, 2e6), "SOL": (200, 1e6),
+            }.get(a, (1e-9, 1e12))
+        return (1e-9, 1e12)
+
+    lo, hi = rng(A, F)
+    chosen = direct_price
+    in_range = (lo <= chosen <= hi)
+
+    if cross is not None:
+        if not in_range:
+            chosen = cross
+        else:
+            # если сильно отличается от кросса (>25%) — доверяем кроссу
+            rel = abs(chosen - cross) / max(cross, 1e-12)
+            if rel > 0.25:
+                chosen = cross
+
+    # спец-проверка для стейблов
+    if A in {"USDT", "USDC", "DAI", "TUSD", "USD"} and F in {"UAH", "USD", "EUR"}:
+        if not (0.01 < chosen < 1000) and cross is not None and (0.01 < cross < 1000):
+            chosen = cross
+
+    return {"pair": f"{A}-{F}", "price": float(chosen), "url": url, "ts": int(time.time())}
+
+# ------------------ Bybit payments из txt ------------------
+BYBIT_PAYMENTS_MAP = {}
+
+def _load_bybit_payments():
+    path_local = os.path.join(os.path.dirname(__file__), "bybit_payment_methods.txt")
+    path_alt   = "/mnt/data/bybit_payment_methods.txt"
+    path = path_local if os.path.exists(path_local) else (path_alt if os.path.exists(path_alt) else None)
+    if not path: return
+    current = None
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.rstrip("\n")
+            head = re.match(r"^===\s*([A-Z]{3})\s*===", line)
+            if head:
+                current = head.group(1).upper()
+                BYBIT_PAYMENTS_MAP[current] = []
+                continue
+            if not line.strip() or current is None:
+                continue
+            m = re.match(r"^\s*([0-9]+)\s+(.+?)\s*$", line)
+            if m:
+                BYBIT_PAYMENTS_MAP[current].append({"id": m.group(1), "name": m.group(2)})
+
+_load_bybit_payments()
+
+# ------------------ API: справочники ------------------
+@app.route("/api/binance/paytypes")
+def api_binance_paytypes():
+    asset    = (request.args.get("asset") or "USDT").upper()
+    fiat     = (request.args.get("fiat") or "UAH").upper()
+    side     = (request.args.get("side") or "SELL").upper()
+    amount   = request.args.get("amount", "20000")
+    merchant = request.args.get("merchant_binance", "true").lower() == "true"
+    try:
+        items = discover_binance_paytypes(asset, fiat, side, amount, merchant)
+        return jsonify({"ok": True, "items": items})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e), "items": []}), 502
+
+@app.route("/api/bybit/payments")
+def api_bybit_payments():
+    fiat = (request.args.get("fiat") or "UAH").upper()
+    items = BYBIT_PAYMENTS_MAP.get(fiat, [])
+    items = sorted(items, key=lambda x: (x["name"].lower(), int(x["id"])))
+    return jsonify({"fiat": fiat, "count": len(items), "items": items})
+
+# ------------------ Единый API ------------------
 @app.route("/api/rates")
 def api_rates():
-    """
-    Единая точка, читает общие фильтры и возвращает объект {binance:{...}, bybit:{...}}
-    Параметры:
-      asset=USDT
-      fiat=UAH
-      side=SELL|BUY
-      amount=20000
-      merchant=true|false        (для Binance)
-      verified=true|false        (для Bybit)
-      payment=...                (для Binance это payType строка, для Bybit — список через запятую)
-    """
-    asset    = request.args.get("asset", "USDT").upper()
-    fiat     = request.args.get("fiat", "UAH").upper()
-    side     = request.args.get("side", "SELL").upper()
-    amount   = request.args.get("amount", "20000")
-    merchant = request.args.get("merchant", "true").lower() == "true"
-    verified = request.args.get("verified", "false").lower() == "true"
-    payment  = request.args.get("payment", "").strip()
+    asset  = request.args.get("asset", "USDT").upper()
+    fiat   = request.args.get("fiat", "UAH").upper()
+    side   = request.args.get("side", "SELL").upper()
+    amount = request.args.get("amount", "20000")
 
-    # Для Binance — один payType (строка)
-    binance_paytype = payment if payment else ""
+    merchant_binance = (request.args.get("merchant_binance", "true").lower() == "true")
+    paytypes_csv     = (request.args.get("paytypes_binance") or "").strip()
+    paytypes_binance = [p for p in (paytypes_csv.split(",") if paytypes_csv else []) if p]
 
-    # Для Bybit — список (если пользователь указал через запятую)
-    bybit_payments = []
-    if payment:
-        # Разрешим как числа (идентификаторы), так и любые строки
-        bybit_payments = [p.strip() for p in payment.split(",") if p.strip()]
+    verified_bybit = (request.args.get("verified_bybit", "false").lower() == "true")
+    payments_csv   = (request.args.get("payments_bybit") or "").strip()
+    bybit_payments = [p for p in (payments_csv.split(",") if payments_csv else []) if p]
 
-    out = {"binance": None, "bybit": None}
+    out = {"google": None, "binance": None, "bybit": None}
     errors = {}
 
     try:
-        out["binance"] = fetch_binance(asset, fiat, side, binance_paytype, amount, rows=10, merchant=merchant)
+        out["google"] = fetch_gf(asset, fiat)
+    except Exception as e:
+        errors["google"] = str(e)
+
+    try:
+        out["binance"] = fetch_binance(asset, fiat, side, paytypes_binance, amount, rows=10, merchant=merchant_binance)
     except Exception as e:
         errors["binance"] = str(e)
 
     try:
-        out["bybit"] = fetch_bybit(asset, fiat, side, bybit_payments, amount, rows=10, verified=verified)
+        out["bybit"] = fetch_bybit(asset, fiat, side, bybit_payments, amount, rows=10, verified=verified_bybit)
     except Exception as e:
         errors["bybit"] = str(e)
 
     return jsonify({
         "ok": True,
         "params": {
-            "asset": asset, "fiat": fiat, "side": side,
-            "amount": amount, "merchant": merchant, "verified": verified,
-            "payment": payment
+            "asset": asset, "fiat": fiat, "side": side, "amount": amount,
+            "merchant_binance": merchant_binance, "paytypes_binance": paytypes_binance,
+            "verified_bybit": verified_bybit, "payments_bybit": bybit_payments
         },
+        "google": out["google"],
         "binance": out["binance"],
         "bybit": out["bybit"],
         "errors": errors or None,
@@ -221,57 +347,103 @@ PAGE = """
 <html lang="ru">
 <head>
 <meta charset="utf-8" />
-<title>P2P Dashboard: Binance & Bybit</title>
+<title>P2P Dashboard: Binance • Bybit • Google Finance</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  :root { color-scheme: dark light; }
-  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; padding:24px; background:#0b0d12; color:#e6e9ef; }
+  :root {
+    color-scheme: dark light;
+    --accent: #22c55e;
+    --card: #12151c;
+    --border: #242a36;
+    --bg: #0b0d12;
+    --fg: #e6e9ef;
+    --muted: #9aa4b2;
+  }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; padding:24px; background:var(--bg); color:var(--fg); }
   .wrap { max-width: 1200px; margin: 0 auto; }
-  .card { background:#12151c; border:1px solid #242a36; border-radius:16px; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; position:relative; }
+  .card::after{ content:""; position:absolute; left:0; top:0; width:100%; height:2px; background:linear-gradient(90deg, transparent, var(--accent), transparent); opacity:.35; border-radius:16px 16px 0 0; }
   h1 { margin:0 0 16px; font-size: 22px; font-weight:700; }
-  .muted { color:#9aa4b2; font-size: 12px; }
+  h2 { margin:0 0 8px; }
+  .muted { color:var(--muted); font-size: 12px; }
   .row { display:flex; gap:12px; flex-wrap: wrap; margin: 14px 0; }
   .row > * { flex: 1 1 180px; }
-  label { display:block; font-size:12px; color:#9aa4b2; margin-bottom:6px; }
-  input, select { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2a3140; background:#0f1218; color:#e6e9ef; }
-  button { padding:10px 14px; border-radius:10px; border:1px solid #2a3140; background:#1a2130; color:#e6e9ef; cursor:pointer; }
-  button:hover { background:#20283a; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+  input, select, button { font: inherit; }
+  input, select { width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:#0f1218; color:var(--fg); }
+  button { padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:#1a2130; color:var(--fg); cursor:pointer; }
+  button:hover { background:#20283a; border-color: #2d3546; }
+  .btn-small { padding:6px 10px; font-size:12px; }
   .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top: 16px; }
   .rate { font-size: 34px; font-weight:700; margin: 6px 0 8px; }
   table { width:100%; border-collapse: collapse; margin-top: 10px; }
   th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #222a38; font-size: 14px; }
-  th { color:#9aa4b2; font-weight:600; font-size:12px; }
+  th { color:var(--muted); font-weight:600; font-size:12px; }
   .error { background:#311319; color:#ffb3c0; padding:10px 12px; border:1px solid #51212b; border-radius:10px; margin-top: 8px; }
-  .ok { background:#122217; color:#b8ffcf; padding:6px 10px; border-radius:10px; display:inline-block; margin-top: 8px; }
+  .ok { background:#122217; color:#b8ffcf; padding:6px 10px; border:1px solid #1e3a2b; border-radius:10px; display:inline-block; margin-top: 8px; }
   @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
+  .footer{ position:fixed; right:20px; bottom:15px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); opacity:.85; }
+  .footer img{ width:28px; height:28px; object-fit:contain; }
+  .chip { background:#0e1622; border:1px solid #223047; color:var(--muted); padding:3px 8px; border-radius:999px; font-size:12px; }
+
+  /* Multi-dropdown */
+  .mdrop { position: relative; display:inline-block; width:100%; }
+  .mdrop-btn { width:100%; text-align:left; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .mdrop-btn .count { color:var(--muted); font-size:12px; }
+  .mdrop-menu {
+    position:absolute; z-index:20; margin-top:6px; min-width:320px; max-width:520px; max-height:420px;
+    background:#0f1218; border:1px solid var(--border); border-radius:12px; box-shadow:0 20px 40px rgba(0,0,0,.45);
+    display:none; overflow:hidden; flex-direction:column; /* flex будет при .open */
+  }
+  .mdrop.open .mdrop-menu { display:flex; }
+
+  .mdrop-head { position: sticky; top: 0; background:#0f1218; border-bottom:1px solid var(--border); padding:8px; }
+  .mdrop-head input{
+    width:100%; padding:8px 10px; border-radius:10px; border:1px solid var(--border); background:#0f1218; color:var(--fg);
+    outline:none;
+  }
+  .mdrop-head input:focus{ border-color: var(--accent); box-shadow: 0 0 0 2px rgba(34,197,94,.15); }
+
+  .mdrop-body { padding:10px; overflow:auto; }
+  .mdrop-grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px 10px; align-items:stretch; }
+  .mdrop-pill {
+    min-height:32px; padding:4px 8px; border-radius:10px; border:1px solid var(--border); background:#0f1218;
+    display:flex; align-items:center; justify-content:flex-start; text-align:left; cursor:pointer; user-select:none;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px;
+  }
+  .mdrop-pill:hover { background:#121a24; border-color:#2c3a4f; }
+  .mdrop-pill.active { background:#0d1f16; border-color: rgba(34,197,94,.65); box-shadow: inset 0 0 0 1px rgba(34,197,94,.35); }
+
+  .mdrop-foot {
+    position: sticky; bottom: 0; background:#0f1218; border-top:1px solid var(--border); padding:8px;
+    display:grid; grid-template-columns: 1fr 1fr; gap:8px;
+  }
+  .mdrop-foot button { width:100%; }
+  .mdrop-foot button:first-child { border-color: #1e2b22; background:#112318; }
+  .mdrop-foot button:first-child:hover { border-color:#244a33; background:#14301f; }
+  .mdrop-foot button:last-child { border-color:#2a1f21; background:#231317; }
+  .mdrop-foot button:last-child:hover { border-color:#3a2a2d; background:#2a171c; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>P2P Dashboard • Binance & Bybit <span class="muted" id="ts"></span></h1>
+  <h1>P2P Dashboard <span class="muted" id="ts"></span></h1>
 
+  <!-- Глобальные фильтры -->
   <div class="card">
     <form id="filters" class="row" onsubmit="apply(event)">
       <div>
         <label>Актив</label>
         <select id="asset">
-          <option>USDT</option>
-          <option>BTC</option>
-          <option>ETH</option>
-          <option>BNB</option>
-          <option>SOL</option>
-          <option>USDC</option>
+          <option>USDT</option><option>BTC</option><option>ETH</option>
+          <option>BNB</option><option>SOL</option><option>USDC</option>
         </select>
       </div>
       <div>
         <label>Фиат</label>
         <select id="fiat">
-          <option>UAH</option>
-          <option>USD</option>
-          <option>EUR</option>
-          <option>RUB</option>
-          <option>KZT</option>
-          <option>TRY</option>
+          <option>UAH</option><option>USD</option><option>EUR</option>
+          <option>RUB</option><option>KZT</option><option>TRY</option>
         </select>
       </div>
       <div>
@@ -285,18 +457,6 @@ PAGE = """
         <label>Сумма (фиат)</label>
         <input id="amount" type="number" step="1" value="20000" />
       </div>
-      <div>
-        <label>Платёжный метод</label>
-        <input id="payment" placeholder="Напр.: MONOBANK (Binance) или '1,43' (Bybit)" />
-      </div>
-      <div>
-        <label>Верифицированные/Мерчанты</label>
-        <select id="verified">
-          <option value="true">Да</option>
-          <option value="false" selected>Нет</option>
-        </select>
-        
-      </div>
       <div style="align-self:end">
         <button type="submit">Применить</button>
         <button type="button" onclick="refreshNow()">Обновить</button>
@@ -304,25 +464,115 @@ PAGE = """
     </form>
   </div>
 
-  <div class="grid">
+  <!-- Google Finance -->
+  <div class="card" id="gf_card" style="margin-top:12px;">
+    <h2 style="margin:0 0 6px;">Google Finance <span id="gf_pair" class="chip"></span></h2>
+    <div id="gf_error" class="error" style="display:none"></div>
+    <div class="rate" id="gf_price">—</div>
+    <div class="muted">
+      <span id="gf_ts">—</span>
+      · <a id="gf_link" href="#" target="_blank" rel="noopener" style="color:var(--muted);">Открыть котировку</a>
+    </div>
+    <div style="margin-top:8px;">
+      <span class="chip">Спред к Binance: <span id="gf_spread_bin">—</span></span>
+      &nbsp; <span class="chip">Спред к Bybit: <span id="gf_spread_byb">—</span></span>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:16px;">
+    <!-- Binance -->
     <div class="card" id="binance_card">
-      <h2>Binance</h2>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+        <h2 style="margin:0;">Binance</h2>
+        <button class="btn-small" type="button" onclick="toggleFilters('binance_filters', this)">Фильтры</button>
+      </div>
       <div id="binance_status" class="ok" style="display:none">OK</div>
       <div id="binance_error" class="error" style="display:none"></div>
       <div class="rate" id="binance_avg">—</div>
       <div class="muted" id="binance_prices">—</div>
+
+      <div class="filters" id="binance_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
+        <div class="row">
+          <div>
+            <label>Верифицированные продавцы</label>
+            <select id="merchant_binance">
+              <option value="true">Да</option>
+              <option value="false">Нет</option>
+            </select>
+          </div>
+          <div>
+            <label>Платёжные метод</label>
+            <div class="mdrop" id="dd_binance" onclick="event.stopPropagation()">
+              <button type="button" class="mdrop-btn" onclick="mdropToggle('dd_binance'); event.stopPropagation();">
+                <span>Выбрать методы</span> <span class="count" id="dd_binance_count">0</span>
+              </button>
+              <div class="mdrop-menu">
+                <div class="mdrop-head">
+                  <input id="dd_binance_search" placeholder="Поиск метода..." oninput="onSearchInput('dd_binance')" />
+                </div>
+                <div class="mdrop-body">
+                  <div class="mdrop-grid" id="dd_binance_grid"></div>
+                </div>
+                <div class="mdrop-foot">
+  <button type="button" class="js-confirm">Подтвердить</button>
+  <button type="button" class="js-reset">Сбросить</button>
+</div>
+              </div>
+            </div>
+            <!-- без чипсов -->
+          </div>
+        </div>
+      </div>
+
       <table>
         <thead><tr><th>#</th><th>Трейдер</th><th>Цена</th><th>Объём</th><th>Мин</th><th>Макс</th></tr></thead>
         <tbody id="binance_tbody"></tbody>
       </table>
     </div>
 
+    <!-- Bybit -->
     <div class="card" id="bybit_card">
-      <h2>Bybit</h2>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+        <h2 style="margin:0;">Bybit</h2>
+        <button class="btn-small" type="button" onclick="toggleFilters('bybit_filters', this)">Фильтры</button>
+      </div>
       <div id="bybit_status" class="ok" style="display:none">OK</div>
       <div id="bybit_error" class="error" style="display:none"></div>
       <div class="rate" id="bybit_avg">—</div>
       <div class="muted" id="bybit_prices">—</div>
+
+      <div class="filters" id="bybit_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
+        <div class="row">
+          <div>
+            <label>Верифицированные продавцы</label>
+            <select id="verified_bybit">
+              <option value="true">Да</option>
+              <option value="false" selected>Нет</option>
+            </select>
+          </div>
+          <div>
+            <label>Платёжные метод </label>
+            <div class="mdrop" id="dd_bybit" onclick="event.stopPropagation()">
+              <button type="button" class="mdrop-btn" onclick="mdropToggle('dd_bybit'); event.stopPropagation();">
+                <span>Выбрать методы</span> <span class="count" id="dd_bybit_count">0</span>
+              </button>
+              <div class="mdrop-menu">
+                <div class="mdrop-head">
+                  <input id="dd_bybit_search" placeholder="Поиск метода..." oninput="onSearchInput('dd_bybit')" />
+                </div>
+                <div class="mdrop-body">
+                  <div class="mdrop-grid" id="dd_bybit_grid"></div>
+                </div>
+                <div class="mdrop-foot">
+  <button type="button" class="js-confirm">Подтвердить</button>
+  <button type="button" class="js-reset">Сбросить</button>
+</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <table>
         <thead><tr><th>#</th><th>Трейдер</th><th>Цена</th><th>Объём</th><th>Мин</th><th>Макс</th></tr></thead>
         <tbody id="bybit_tbody"></tbody>
@@ -335,20 +585,183 @@ PAGE = """
   let timer = null;
   const REFRESH_MS = 30000;
 
-  function fmt(n){ return Number(n).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:6}); }
+  // Выборы
+  let selectedBinance = new Set();
+  let selectedBybit   = new Set();
+  const tempSelected  = { dd_binance: new Set(), dd_bybit: new Set() };
 
+  // Поиск
+  const searchState = { dd_binance: "", dd_bybit: "" };
+
+  // Кэши справочников
+  let binanceItems = [];
+  let bybitItems   = [];
+
+  // ---------- Фильтры карточек ----------
+  function toggleFilters(id, btn){
+    const el = document.getElementById(id);
+    const hidden = window.getComputedStyle(el).display === 'none';
+    el.style.display = hidden ? '' : 'none';
+    if (btn) btn.textContent = hidden ? 'Скрыть фильтры' : 'Фильтры';
+    if (hidden){
+      if (id==='binance_filters') loadBinancePaytypes();
+      if (id==='bybit_filters')   loadBybitPayments();
+    } else {
+      closeAllDropdowns();
+    }
+  }
+
+  // ---------- Выпадашки ----------
+  function mdropToggle(ddId){
+    const dd = document.getElementById(ddId);
+    if (dd.classList.contains('open')){
+      closeAndClear(ddId);
+      return;
+    }
+    closeAllDropdowns();
+    dd.classList.add('open');
+    if (ddId==='dd_binance') tempSelected[ddId] = new Set([...selectedBinance]);
+    if (ddId==='dd_bybit')   tempSelected[ddId] = new Set([...selectedBybit]);
+    renderDropdownOptions(ddId);
+    const input = document.getElementById(ddId + '_search');
+    if (input) { input.value = searchState[ddId] || ""; input.focus(); }
+  }
+
+  function closeAndClear(ddId){
+    const dd = document.getElementById(ddId);
+    if (!dd) return;
+    dd.classList.remove('open');
+    searchState[ddId] = "";
+    const input = document.getElementById(ddId + '_search');
+    if (input) input.value = "";
+  }
+
+  function closeAllDropdowns(){
+    document.querySelectorAll('.mdrop.open').forEach(dd => {
+      const id = dd.id;
+      dd.classList.remove('open');
+      searchState[id] = "";
+      const input = document.getElementById(id + '_search');
+      if (input) input.value = "";
+    });
+  }
+
+  // Закрытие по клику вне — capture, чтобы срабатывало надёжно
+  document.addEventListener('pointerdown', (e) => {
+    const openDd = document.querySelector('.mdrop.open');
+    if (!openDd) return;
+    if (openDd.contains(e.target)) return; // клики внутри меню не закрывают
+    closeAllDropdowns();
+  }, true);
+
+  // Закрытие по Esc
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAllDropdowns();
+  });
+
+  // ---------- Поиск ----------
+  function onSearchInput(ddId){
+    const input = document.getElementById(ddId + '_search');
+    const val = (input?.value || '').toLowerCase().trim();
+    searchState[ddId] = val;
+    renderDropdownOptions(ddId);
+  }
+
+  function filteredItems(ddId){
+    const list = (ddId==='dd_binance') ? binanceItems : bybitItems;
+    const q = (searchState[ddId] || '').toLowerCase();
+    if (!q) return list;
+    return list.filter(it => (String(it.name||'') + ' ' + String(it.id||'')).toLowerCase().includes(q));
+  }
+
+  function renderDropdownOptions(ddId){
+    const isBin = ddId==='dd_binance';
+    const items = filteredItems(ddId);
+    const temp  = tempSelected[ddId];
+    const gridId = isBin ? 'dd_binance_grid' : 'dd_bybit_grid';
+    const grid = document.getElementById(gridId);
+    grid.innerHTML = '';
+    items.forEach(it => {
+      const id = String(it.id);
+      const name = it.name || id;
+      const btn = document.createElement('div');
+      btn.className = 'mdrop-pill' + (temp.has(id) ? ' active' : '');
+      btn.textContent = name;
+      btn.title = name;
+      btn.dataset.id = id;
+      btn.addEventListener('click', () => {
+        if (temp.has(id)) temp.delete(id); else temp.add(id);
+        btn.classList.toggle('active');
+        const cntSpan = document.getElementById(isBin ? 'dd_binance_count' : 'dd_bybit_count');
+        cntSpan.textContent = String(temp.size);
+      });
+      grid.appendChild(btn);
+    });
+    const cntSpan = document.getElementById(isBin ? 'dd_binance_count' : 'dd_bybit_count');
+    cntSpan.textContent = String(temp.size);
+  }
+
+  function updateCounters(){
+    document.getElementById('dd_binance_count').textContent = String(selectedBinance.size);
+    document.getElementById('dd_bybit_count').textContent   = String(selectedBybit.size);
+  }
+
+  // ---------- Справочники ----------
+  async function loadBinancePaytypes(){
+    const asset = document.getElementById('asset').value;
+    const fiat  = document.getElementById('fiat').value;
+    const side  = document.getElementById('side').value;
+    const amount= document.getElementById('amount').value;
+    const merch = document.getElementById('merchant_binance')?.value ?? 'true';
+    const url = '/api/binance/paytypes?' + new URLSearchParams({asset,fiat,side,amount,merchant_binance:merch});
+    try{
+      const r = await fetch(url);
+      const js = await r.json();
+      binanceItems = js.items || [];
+      [...selectedBinance].forEach(id => { if (!binanceItems.find(it => String(it.id)===id)) selectedBinance.delete(id); });
+      updateCounters();
+      return binanceItems;
+    }catch(e){
+      binanceItems = [];
+      selectedBinance.clear();
+      updateCounters();
+      return [];
+    }
+  }
+
+  async function loadBybitPayments(){
+    const fiat = document.getElementById('fiat').value;
+    try{
+      const r = await fetch('/api/bybit/payments?fiat=' + encodeURIComponent(fiat));
+      const js = await r.json();
+      bybitItems = js.items || [];
+      [...selectedBybit].forEach(id => { if (!bybitItems.find(it => String(it.id)===id)) selectedBybit.delete(id); });
+      updateCounters();
+      return bybitItems;
+    }catch(e){
+      bybitItems = [];
+      selectedBybit.clear();
+      updateCounters();
+      return [];
+    }
+  }
+
+  // ---------- Параметры / загрузка ----------
   function paramsFromUI(){
     return {
       asset:   document.getElementById('asset').value,
       fiat:    document.getElementById('fiat').value,
       side:    document.getElementById('side').value,
       amount:  document.getElementById('amount').value,
-      payment: document.getElementById('payment').value.trim(),
-      // единый переключатель: merchant для Binance и verified для Bybit
-      merchant: document.getElementById('verified').value,
-      verified: document.getElementById('verified').value,
+      merchant_binance: document.getElementById('merchant_binance')?.value ?? 'true',
+      paytypes_binance: [...selectedBinance].join(','),
+      verified_bybit: document.getElementById('verified_bybit')?.value ?? 'false',
+      payments_bybit:  [...selectedBybit].join(',')
     };
   }
+
+  function fmt(n){ return Number(n).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:6}); }
+  function fmtShort(n){ return Number(n).toLocaleString('ru-RU', {maximumFractionDigits:6}); }
 
   async function load(){
     const p = paramsFromUI();
@@ -359,7 +772,29 @@ PAGE = """
 
     document.getElementById('ts').textContent = ' • обновлено: ' + new Date().toLocaleTimeString('ru-RU');
 
-    // BINANCE
+    // GF
+    const gErr = document.getElementById('gf_error');
+    document.getElementById('gf_pair').textContent = `${p.asset}-${p.fiat}`;
+    if (data.errors && data.errors.google){
+      gErr.style.display = ''; gErr.textContent = 'GF ошибка: ' + data.errors.google;
+      document.getElementById('gf_price').textContent = '—';
+      document.getElementById('gf_ts').textContent = '—';
+      document.getElementById('gf_link').href = '#';
+      document.getElementById('gf_spread_bin').textContent = '—';
+      document.getElementById('gf_spread_byb').textContent = '—';
+    } else if (data.google){
+      gErr.style.display = 'none';
+      const g = data.google;
+      document.getElementById('gf_price').textContent = fmtShort(g.price) + ' ' + p.fiat;
+      document.getElementById('gf_ts').textContent = 'TS: ' + new Date(g.ts*1000).toLocaleTimeString('ru-RU');
+      document.getElementById('gf_link').href = g.url || '#';
+      const s1 = ((data.binance?.avg ?? null) === null) ? null : ((data.binance.avg - g.price) / g.price * 100);
+      const s2 = ((data.bybit?.avg ?? null) === null) ? null : ((data.bybit.avg - g.price) / g.price * 100);
+      document.getElementById('gf_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
+      document.getElementById('gf_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
+    }
+
+    // Binance
     const bErr = document.getElementById('binance_error');
     const bOk  = document.getElementById('binance_status');
     if (data.errors && data.errors.binance){
@@ -369,8 +804,7 @@ PAGE = """
       document.getElementById('binance_prices').textContent = '—';
       document.getElementById('binance_tbody').innerHTML = '';
     } else if (data.binance){
-      bErr.style.display = 'none';
-      bOk.style.display = '';
+      bErr.style.display = 'none'; bOk.style.display = '';
       const d = data.binance;
       document.getElementById('binance_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
       document.getElementById('binance_prices').textContent = d.prices && d.prices.length ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
@@ -382,7 +816,7 @@ PAGE = """
       });
     }
 
-    // BYBIT
+    // Bybit
     const yErr = document.getElementById('bybit_error');
     const yOk  = document.getElementById('bybit_status');
     if (data.errors && data.errors.bybit){
@@ -392,8 +826,7 @@ PAGE = """
       document.getElementById('bybit_prices').textContent = '—';
       document.getElementById('bybit_tbody').innerHTML = '';
     } else if (data.bybit){
-      yErr.style.display = 'none';
-      yOk.style.display = '';
+      yErr.style.display = 'none'; yOk.style.display = '';
       const d = data.bybit;
       document.getElementById('bybit_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
       document.getElementById('bybit_prices').textContent = d.prices && d.prices.length ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
@@ -406,19 +839,84 @@ PAGE = """
     }
   }
 
-  function apply(ev){ ev.preventDefault(); refreshNow(); history.replaceState(null, '', '?' + new URLSearchParams(paramsFromUI()).toString()); }
+  function apply(ev){ ev.preventDefault(); applyFiltersFromCurrent(); }
+  function applyFiltersFromCurrent(){
+    refreshNow();
+    const p = paramsFromUI();
+    history.replaceState(null, '', '?' + new URLSearchParams(p).toString());
+  }
   function refreshNow(){ load(); if (timer) clearInterval(timer); timer = setInterval(load, REFRESH_MS); }
+  // --- Делегирование кликов внутри меню
+function wireDropdown(ddId){
+  const root = document.getElementById(ddId);
+  if (!root) return;
+  const menu = root.querySelector('.mdrop-menu');
+  if (!menu || menu.__wired) return;
 
-  // Инициализация
-  window.addEventListener('DOMContentLoaded', () => {
-    // Параметры из URL -> в форму
-    const q = new URLSearchParams(location.search);
-    for (const id of ['asset','fiat','side','amount','payment','verified']){
-      const v = q.get(id); if (v!==null) document.getElementById(id).value = v;
+  menu.addEventListener('click', (e) => {
+    e.stopPropagation();
+
+    // Подтвердить — применяем, грузим, закрываем
+    if (e.target.closest('.js-confirm')){
+      if (ddId==='dd_binance') selectedBinance = new Set([...tempSelected[ddId]]);
+      if (ddId==='dd_bybit')   selectedBybit   = new Set([...tempSelected[ddId]]);
+      updateCounters();
+      applyFiltersFromCurrent();  // 1) отправить запрос/обновить
+      closeAllDropdowns();        // 2) закрыть меню
+      return;
     }
+
+    // Сбросить — только очистить временный выбор и UI, без запроса и закрытия
+    if (e.target.closest('.js-reset')){
+      tempSelected[ddId] = new Set();  // очищаем временный выбор
+      renderDropdownOptions(ddId);     // снимаем подсветку плиток мгновенно
+      // Обновить счетчик внутри кнопки (показываем temp.size)
+      const cntSpan = document.getElementById(ddId === 'dd_binance' ? 'dd_binance_count' : 'dd_bybit_count');
+      if (cntSpan) cntSpan.textContent = '0';
+      return;
+    }
+  });
+
+  menu.__wired = true;
+}
+  // Инициализация
+  window.addEventListener('DOMContentLoaded', async () => {
+    // Свернуть все дропдауны на старте (страховка)
+    closeAllDropdowns();
+
+    // Параметры из URL -> форма
+    const q = new URLSearchParams(location.search);
+    for (const id of ['asset','fiat','side','amount']){
+      const v = q.get(id); if (v!==null) document.getElementById(id).value = v;
+      wireDropdown('dd_binance');
+      wireDropdown('dd_bybit');
+      refreshNow();
+    }
+    const bcsv = q.get('paytypes_binance'); if (bcsv){ bcsv.split(',').forEach(x => x && selectedBinance.add(x)); }
+    const ycsv = q.get('payments_bybit');   if (ycsv){ ycsv.split(',').forEach(x => x && selectedBybit.add(x)); }
+
+    await loadBinancePaytypes();
+    await loadBybitPayments();
+    updateCounters();
+
+    // Глобальные фильтры — перезагрузка данных
+    document.getElementById('asset').addEventListener('change', () => { loadBinancePaytypes(); refreshNow(); });
+    document.getElementById('fiat').addEventListener('change', () => { loadBinancePaytypes(); loadBybitPayments(); refreshNow(); });
+    document.getElementById('side').addEventListener('change', () => { loadBinancePaytypes(); refreshNow(); });
+    document.getElementById('amount').addEventListener('change', () => { loadBinancePaytypes(); refreshNow(); });
+
+    // Мгновенно реагируем на переключатели
+    document.getElementById('merchant_binance')?.addEventListener('change', () => { loadBinancePaytypes(); refreshNow(); });
+    document.getElementById('verified_bybit')?.addEventListener('change', () => { refreshNow(); });
+
     refreshNow();
   });
 </script>
+
+<footer class="footer">
+  <span>Powered by bergamot1144</span>
+  <img src="https://cdn0.iconfinder.com/data/icons/fruits-139/185/Bergamot-512.png" alt="logo">
+</footer>
 </body>
 </html>
 """
@@ -432,5 +930,5 @@ def healthz():
     return "ok"
 
 if __name__ == "__main__":
-    # Откройте: http://127.0.0.1:5000/
     app.run(host="0.0.0.0", port=5000, debug=True)
+

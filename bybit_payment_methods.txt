@@ -1,0 +1,2261 @@
+=== MXN ===
+14	Bank Transfer
+16	BBVA
+299	STP
+506	Banregio
+129	Mercadopago
+520	Opay
+705	Santander México
+706	Bineo
+512	Carbon microfinance bank
+528	PAGA
+704	Banorte
+525	Polaris bank
+511	Domicilary Bank
+491	TP Bank
+514	Clear Junction Limited, City London, Country UK.
+505	Bancoppel
+301	OXXO
+524	Jaiz Bank
+509	CTBC
+510	Vfd
+507	NMB
+77	Transfers with specific bank
+526	Ecobank
+521	Palm Pay
+508	Standard chartered bank
+515	First Bank
+96	Cash app
+522	Paycom or Opay
+4	7-Eleven
+523	Union bank of India
+7	AirTM
+18	Cash Deposit to Bank
+517	Fidelity Bank
+162	Skrill
+529	United Bank of Africa
+527	Union Bank
+518	Kuda Bank
+78	Wise
+87	Western Union
+513	FCMB
+300	Citibanamex
+516	GTB Bank (Guarantee Trust Bank)
+519	(unknown)
+15	Bank Transfer(pero)
+302	Bank Transfer (Venezuela)
+134	Uala
+121	Zelle
+
+=== VES ===
+130	Pago Movil
+302	Bank Transfer (Venezuela)
+14	Bank Transfer
+137	Banesco
+318	Provincial
+320	Bancaribe
+325	Banco Plaza
+326	Recarga Pines
+18	Cash Deposit to Bank
+16	BBVA
+189	Zinli
+323	Ubii Pagos
+193	Mercantil Bank Panama
+78	Wise
+321	Bancamiga
+126	BancolombiaS.A
+322	Banplus
+327	Tu Dinero Ya (Banco Plaza)
+56	Perfect Money
+121	Zelle
+324	Banco Activo
+77	Transfers with specific bank
+96	Cash app
+279	Efecty
+7	AirTM
+316	Mercantil
+51	Payeer
+319	Western Discount Bank
+5	Volet.com (Formerly Advcash)
+198	Banistmo Panama
+253	BNC Banco Nacional de Credito
+
+=== CLP ===
+223	Banco Estado
+404	MACH
+14	Bank Transfer
+403	Tenpo
+405	Banco Santander Chile
+302	Bank Transfer (Venezuela)
+130	Pago Movil
+126	BancolombiaS.A
+666	Banco BCI
+268	Scotiabank Colpatria
+278	Banco Falabella
+129	Mercadopago
+77	Transfers with specific bank
+18	Cash Deposit to Bank
+667	Banco BICE
+230	Banco de Chile
+104	Interbank
+200	Banco de Credito
+402	Banco Santander (Spain)
+406	Banco Itau de Chile
+423	Scotiabank (Bahamas)
+78	Wise
+
+=== UGX ===
+178	MTN Mobile Money
+97	Chipper Cash
+698	Equity Bank
+608	Airtime Mobile Top-Up
+526	Ecobank
+41	MoMo
+697	Stanbic Bank
+14	Bank Transfer
+6	Airtel Money
+
+=== ZAR ===
+14	Bank Transfer
+352	FNB-ewallet
+54	PayPal
+87	Western Union
+178	MTN Mobile Money
+328	ZEN
+97	Chipper Cash
+18	Cash Deposit to Bank
+252	Pix
+78	Wise
+56	Perfect Money
+162	Skrill
+20	Coin.ph
+353	PicPay
+
+=== TND ===
+160	Postepay
+96	Cash app
+362	Attijari Bank
+152	La Banque postale
+575	Arab International Bank of Tunisia
+163	Societe Generale
+77	Transfers with specific bank
+18	Cash Deposit to Bank
+577	Banque Zitouna
+576	Arab Tunisian Bank
+5	Volet.com (Formerly Advcash)
+14	Bank Transfer
+
+=== VND ===
+14	Bank Transfer
+235	Banks transfer (Vietnam)
+15	Bank Transfer(pero)
+494	Vietcombank
+41	MoMo
+496	Techcombank
+292	mBank
+498	ACB
+84	VNPay
+83	ViettelPay
+5	Volet.com (Formerly Advcash)
+89	ZaloPay
+18	Cash Deposit to Bank
+493	BIDV
+492	VP Bank
+85	VNPT Pay
+489	SCB
+70	SmartPay
+1	А-Банк
+10	Apple Pay
+497	Vietinbank
+56	Perfect Money
+410	PayPay
+495	Agribank
+491	TP Bank
+117	SEA Bank
+78	Wise
+73	SWIFT
+119	ShopeePay-SEA
+9	Alior Bank
+65	Revolut
+349	ABB Bank
+77	Transfers with specific bank
+
+=== AUD ===
+14	Bank Transfer
+78	Wise
+65	Revolut
+449	PayID
+30	GoPay
+7	AirTM
+54	PayPal
+56	Perfect Money
+69	Shopee
+87	Western Union
+33	JKOPAY
+111	NETELLER
+328	ZEN
+50	Payall
+162	Skrill
+79	True Money
+165	TBC Bank
+27	FPS
+76	Touch n Go
+17	BCA Mobile
+73	SWIFT
+212	KapitalBank
+5	Volet.com (Formerly Advcash)
+18	Cash Deposit to Bank
+
+=== ILS ===
+14	Bank Transfer
+54	PayPal
+397	Bank Hapoalim
+162	Skrill
+111	NETELLER
+78	Wise
+65	Revolut
+328	ZEN
+121	Zelle
+
+=== BSD ===
+425	Central Bank of The Bahamas
+421	First Caribbean Bank (Bahamas)
+423	Scotiabank (Bahamas)
+517	Fidelity Bank
+424	Central Bank of The Bahamas
+78	Wise
+54	PayPal
+87	Western Union
+14	Bank Transfer
+162	Skrill
+231	CitiBank (Russia)
+422	RBC Royal bank (Bahamas)
+
+=== GHS ===
+178	MTN Mobile Money
+41	MoMo
+169	Vodafone cash
+177	M-Pesa(Vodafone)
+179	Afriex
+261	Dashen
+500	Kuda
+10	Apple Pay
+499	Fidelity
+104	Interbank
+97	Chipper Cash
+526	Ecobank
+184	Tigo Money
+530	Access Bank
+6	Airtel Money
+14	Bank Transfer
+40	Mobile Top-up
+95	Bundle
+
+=== MDL ===
+202	MAIB
+168	Victoriabank
+284	Paynet
+14	Bank Transfer
+49	OTP Bank
+398	Ecopayz
+551	KoronaPay
+203	Halyk Bank
+289	Agrobank
+224	FinComBank
+62	QIWI
+211	Банк ЦентрКредит (KZ)
+18	Cash Deposit to Bank
+158	Paysera
+11	Bank of Georgia
+65	Revolut
+43	Monobank (Карта)
+90	Наличные
+60	Privat Bank
+118	SEPA
+
+=== KHR ===
+194	ABA
+564	KHQR
+87	Western Union
+565	True Money (Cambodia)
+14	Bank Transfer
+204	Bank transfer (Cambodia)
+578	ACLEDA
+217	Bakong
+229	WingMoney
+
+=== BOB ===
+651	Banco Ganadero
+14	Bank Transfer
+255	Banco Union
+653	Banco Nacional de Bolivia
+652	Banco Economico
+200	Banco de Credito
+644	Banco Mercantil Santa Cruz
+654	Banco Solidario
+655	Banco Bisa
+670	Banco Fie
+669	Banco Sol
+
+=== IDR ===
+17	BCA Mobile
+14	Bank Transfer
+115	Permata Me
+117	SEA Bank
+12	Bank Jago
+37	Maybank
+36	Line Pay
+478	(unknown)
+588	Sinarmas
+376	OCBC NISP
+77	Transfers with specific bank
+589	Blu
+113	OVO
+120	Yap! (BNI)
+110	Mandiri Pay
+119	ShopeePay-SEA
+106	Jenius PayMe
+99	Flip
+374	Bank BRI
+108	LinkAja
+45	NEO
+103	Inecobank
+19	CIMB Niaga
+69	Shopee
+30	GoPay
+155	Moneygram
+65	Revolut
+587	Allo Bank
+78	Wise
+
+=== AMD ===
+373	IDBank
+103	Inecobank
+213	Ameriabank
+14	Bank Transfer
+146	Idram
+182	Arca
+498	ACB
+238	UniBank
+371	ArmEconomBank
+372	ArmBusinessBank
+77	Transfers with specific bank
+1	А-Банк
+25	EasyPay
+78	Wise
+90	Наличные
+
+=== TRY ===
+122	Ziraat
+14	Bank Transfer
+412	VakifBank
+114	Papara
+169	Vodafone cash
+429	Burgan Bank (K.S.C) (Burgan)
+219	Bank Transfer (Turkey)
+56	Perfect Money
+211	Банк ЦентрКредит (KZ)
+147	ING
+308	(unknown)
+100	Garanti
+411	DenizBank
+1	А-Банк
+594	Fibabanka
+65	Revolut
+150	Kaspi Bank
+536	enpara.com
+415	HalkBank
+203	Halyk Bank
+590	Oldubil
+64	Raiffeisenbank
+78	Wise
+519	(unknown)
+535	DenizBank
+51	Payeer
+87	Western Union
+537	finansbank
+5	Volet.com (Formerly Advcash)
+77	Transfers with specific bank
+416	Balance
+151	Kuveyt Turk
+413	Akbank
+18	Cash Deposit to Bank
+50	Payall
+162	Skrill
+40	Mobile Top-up
+7	AirTM
+
+=== LBP ===
+420	whish MONEY
+87	Western Union
+417	Bank Audi
+419	Credit Libanais
+155	Moneygram
+418	Bank of Beirut
+
+=== TJS ===
+433	DCBank
+434	Alif Bank
+436	Bank Eskhata
+435	Spitamen Bank
+14	Bank Transfer
+5	Volet.com (Formerly Advcash)
+40	Mobile Top-up
+1	А-Банк
+51	Payeer
+437	International Bank of Tajikistan
+440	Amonatbonk
+282	Humo
+439	Orienbank
+18	Cash Deposit to Bank
+77	Transfers with specific bank
+24	DSK Bank
+65	Revolut
+438	Korti milli
+150	Kaspi Bank
+574	U-money
+582	Local Card(Green)
+
+=== IQD ===
+622	Switch
+617	ZainCash - Business
+616	First Iraqi Bank
+620	Altaif Islamic Bank
+618	Asia Hawala
+621	FastPay
+619	Al-Rafidain QiServices
+
+=== JOD ===
+112	Orange Money-OM
+573	CliQ
+14	Bank Transfer
+347	Arab Bank
+593	Pyypl
+18	Cash Deposit to Bank
+572	ZainCash
+574	U-money
+249	Bank Transfer (Middle East)
+56	Perfect Money
+352	FNB-ewallet
+
+=== HKD ===
+27	FPS
+14	Bank Transfer
+2	AlipayHK
+53	PayMe
+445	WeLab Bank
+447	CTBC Bank
+453	Getin Bank
+441	Bank of China (Hong Kong)
+449	PayID
+443	Mox Bank
+65	Revolut
+370	Plin
+54	PayPal
+33	JKOPAY
+111	NETELLER
+375	Swish
+162	Skrill
+372	ArmBusinessBank
+451	Livi Bank
+452	PAO Bank
+37	Maybank
+448	Standard Chartered Hong Kong
+444	ZA Bank
+60	Privat Bank
+77	Transfers with specific bank
+454	Bank of East Asia
+446	Hang Seng Bank
+442	HSBC Hong Kong
+373	IDBank
+376	OCBC NISP
+450	Shanghai Commercial Bank
+371	ArmEconomBank
+374	Bank BRI
+24	DSK Bank
+1	А-Банк
+18	Cash Deposit to Bank
+3	WeChat Pay HK
+469	OCBC Bank
+78	Wise
+
+=== TWD ===
+14	Bank Transfer
+33	JKOPAY
+36	Line Pay
+27	FPS
+69	Shopee
+455	E.SUN Bank
+457	Chunghwa Post
+456	Bank SinoPac
+447	CTBC Bank
+458	United Bank for Africa
+4	7-Eleven
+459	Cathay Bank
+350	Bank Transfer (Taiwan)
+77	Transfers with specific bank
+162	Skrill
+91	Grab Pay
+
+=== AED ===
+649	Etisalat Cash
+648	Payby
+647	Careem Pay
+155	Moneygram
+388	Esewa
+51	Payeer
+56	Perfect Money
+162	Skrill
+408	International Wire
+87	Western Union
+250	Cashpack
+593	Pyypl
+259	CashU
+96	Cash app
+608	Airtime Mobile Top-Up
+650	Aani
+18	Cash Deposit to Bank
+77	Transfers with specific bank
+249	Bank Transfer (Middle East)
+14	Bank Transfer
+
+=== RSD ===
+14	Bank Transfer
+18	Cash Deposit to Bank
+64	Raiffeisenbank
+65	Revolut
+398	Ecopayz
+162	Skrill
+158	Paysera
+77	Transfers with specific bank
+166	UniCredit
+
+=== EUR ===
+78	Wise
+65	Revolut
+14	Bank Transfer
+522	Paycom or Opay
+159	PKO Bank
+152	La Banque postale
+104	Interbank
+60	Privat Bank
+151	Kuveyt Turk
+162	Skrill
+400	iCard
+150	Kaspi Bank
+18	Cash Deposit to Bank
+164	Sofort
+54	PayPal
+29	Google Pay
+252	Pix
+11	Bank of Georgia
+169	Vodafone cash
+77	Transfers with specific bank
+148	Jazzcash
+165	TBC Bank
+549	Freedom Bank
+163	Societe Generale
+146	Idram
+64	Raiffeisenbank
+158	Paysera
+22	Credit Agricole
+539	Fineco
+540	Swedbank
+212	KapitalBank
+16	BBVA
+224	FinComBank
+551	KoronaPay
+123	Banco Brubank
+563	Jusan Bank
+138	Bizum
+149	(unknown)
+170	WorldRemit
+171	Yape
+330	Bunq
+167	Uphold
+535	DenizBank
+160	Postepay
+402	Banco Santander (Spain)
+168	Victoriabank
+118	SEPA
+359	Credo Bank
+10	Apple Pay
+409	Erste Bank
+114	Papara
+291	Optima Bank
+144	ForteBank
+61	PUMB
+53	PayMe
+353	PicPay
+50	Payall
+154	Millenium
+328	ZEN
+103	Inecobank
+141	Cartes Bancaires
+139	BNP Paribas
+203	Halyk Bank
+7	AirTM
+166	UniCredit
+1	А-Банк
+136	ABN AMRO
+73	SWIFT
+96	Cash app
+111	NETELLER
+161	(unknown)
+303	SEPA Instant
+293	Commercial bank Kyrgyzstan
+100	Garanti
+202	MAIB
+145	iDEAL
+142	Davivienda S.A
+5	Volet.com (Formerly Advcash)
+140	Caisse d'Epargne
+410	PayPay
+591	InstaPay
+416	Balance
+155	Moneygram
+43	Monobank (Карта)
+51	Payeer
+371	ArmEconomBank
+48	OTP
+133	Santander Poland
+411	DenizBank
+526	Ecobank
+593	Pyypl
+25	EasyPay
+521	Palm Pay
+211	Банк ЦентрКредит (KZ)
+525	Polaris bank
+213	Ameriabank
+137	Banesco
+143	Easypaisa-PK Only
+56	Perfect Money
+157	Paysend.com
+147	ING
+275	bKash
+370	Plin
+156	N26
+412	VakifBank
+131	Prex
+295	DemirBank
+538	RWS BANK
+354	PagSeguro
+433	DCBank
+408	International Wire
+582	Local Card(Green)
+58	PNB
+87	Western Union
+232	Monzo
+284	Paynet
+280	Altyn Bank
+333	Paritet Bank
+452	PAO Bank
+528	PAGA
+373	IDBank
+292	mBank
+115	Permata Me
+238	UniBank
+57	PhonePe
+265	Pasha Bank
+46	Oschadbank
+52	Paymaya
+122	Ziraat
+552	Bakai Bank
+382	SBP
+581	Local Card(Yellow)
+264	Nagad
+127	Bank RBK
+130	Pago Movil
+116	Pipol Pay
+470	PalmPay
+190	Produbanco
+63	Raiffeisen Bank Aval
+32	IMPS
+55	Paytm
+
+=== DOP ===
+644	Banco Mercantil Santa Cruz
+77	Transfers with specific bank
+640	Banco Popular
+14	Bank Transfer
+642	Banreservas
+18	Cash Deposit to Bank
+643	Banco BHD
+641	Qik Banco Digital
+
+=== MYR ===
+14	Bank Transfer
+76	Touch n Go
+37	Maybank
+466	Hong Leong Bank
+465	Public Bank Berhad
+468	RHB Bank
+467	CIMB
+469	OCBC Bank
+5	Volet.com (Formerly Advcash)
+54	PayPal
+40	Mobile Top-up
+119	ShopeePay-SEA
+69	Shopee
+78	Wise
+117	SEA Bank
+91	Grab Pay
+33	JKOPAY
+19	CIMB Niaga
+
+=== CAD ===
+225	Interac e-transfer
+78	Wise
+14	Bank Transfer
+54	PayPal
+65	Revolut
+244	TD Bank
+340	BMO
+338	RBC Royal Bank
+158	Paysera
+73	SWIFT
+18	Cash Deposit to Bank
+328	ZEN
+180	EQ Bank
+111	NETELLER
+341	Tangerine Bank
+339	CIBC
+162	Skrill
+7	AirTM
+5	Volet.com (Formerly Advcash)
+
+=== BGN ===
+65	Revolut
+14	Bank Transfer
+24	DSK Bank
+399	LeoPay
+328	ZEN
+78	Wise
+398	Ecopayz
+400	iCard
+162	Skrill
+158	Paysera
+43	Monobank (Карта)
+111	NETELLER
+166	UniCredit
+25	EasyPay
+118	SEPA
+
+=== MMK ===
+607	Spring Development Bank
+606	Onepay
+431	AYA Pay
+605	uabpay
+77	Transfers with specific bank
+351	WavePay
+604	Wave Mobile Money
+603	Wave Money
+602	CB Pay
+14	Bank Transfer
+18	Cash Deposit to Bank
+601	KBZPay
+
+=== NOK ===
+65	Revolut
+401	Vipps
+14	Bank Transfer
+78	Wise
+118	SEPA
+157	Paysend.com
+158	Paysera
+54	PayPal
+328	ZEN
+111	NETELLER
+162	Skrill
+398	Ecopayz
+
+=== XOF ===
+636	Moov Money
+6	Airtel Money
+639	Djamo
+41	MoMo
+155	Moneygram
+604	Wave Mobile Money
+178	MTN Mobile Money
+526	Ecobank
+638	TMoney
+14	Bank Transfer
+112	Orange Money-OM
+
+=== GEL ===
+11	Bank of Georgia
+165	TBC Bank
+359	Credo Bank
+360	Liberty Bank
+551	KoronaPay
+73	SWIFT
+90	Наличные
+18	Cash Deposit to Bank
+65	Revolut
+51	Payeer
+14	Bank Transfer
+87	Western Union
+78	Wise
+211	Банк ЦентрКредит (KZ)
+
+=== RON ===
+65	Revolut
+14	Bank Transfer
+328	ZEN
+365	BRD Bank
+384	CEC
+49	OTP Bank
+77	Transfers with specific bank
+64	Raiffeisenbank
+54	PayPal
+385	Bank Transilvania
+166	UniCredit
+233	BCR Bank
+112	Orange Money-OM
+63	Raiffeisen Bank Aval
+158	Paysera
+118	SEPA
+303	SEPA Instant
+111	NETELLER
+78	Wise
+147	ING
+43	Monobank (Карта)
+60	Privat Bank
+
+=== MAD ===
+361	CIH Bank
+362	Attijari Bank
+363	Attijariwafa National Bank
+593	Pyypl
+87	Western Union
+18	Cash Deposit to Bank
+365	BRD Bank
+7	AirTM
+364	BMCE Bank
+14	Bank Transfer
+367	Crédit Banque Populaire du Maroc
+112	Orange Money-OM
+163	Societe Generale
+152	La Banque postale
+22	Credit Agricole
+78	Wise
+77	Transfers with specific bank
+366	Société Générale Commercial Maroc
+162	Skrill
+
+=== LKR ===
+14	Bank Transfer
+18	Cash Deposit to Bank
+40	Mobile Top-up
+78	Wise
+
+=== NGN ===
+14	Bank Transfer
+520	Opay
+470	PalmPay
+512	Carbon microfinance bank
+521	Palm Pay
+526	Ecobank
+97	Chipper Cash
+525	Polaris bank
+516	GTB Bank (Guarantee Trust Bank)
+513	FCMB
+517	Fidelity Bank
+524	Jaiz Bank
+486	UBA Bank
+518	Kuda Bank
+522	Paycom or Opay
+458	United Bank for Africa
+527	Union Bank
+500	Kuda
+504	Stanbic Ibtc Bank
+530	Access Bank
+529	United Bank of Africa
+515	First Bank
+510	Vfd
+483	Wema Bank
+528	PAGA
+
+=== CZK ===
+396	Česká spořitelna
+78	Wise
+65	Revolut
+14	Bank Transfer
+64	Raiffeisenbank
+395	ČSOB
+394	Fio banka
+292	mBank
+162	Skrill
+393	MONETA Money Bank
+158	Paysera
+63	Raiffeisen Bank Aval
+51	Payeer
+18	Cash Deposit to Bank
+157	Paysend.com
+282	Humo
+166	UniCredit
+60	Privat Bank
+1	А-Банк
+303	SEPA Instant
+5	Volet.com (Formerly Advcash)
+283	Uzcard
+73	SWIFT
+180	EQ Bank
+7	AirTM
+328	ZEN
+
+=== AZN ===
+555	m10
+212	KapitalBank
+556	Leobank
+14	Bank Transfer
+77	Transfers with specific bank
+559	Bank Respublika
+265	Pasha Bank
+581	Local Card(Yellow)
+530	Access Bank
+557	Azer Turk Bank
+5	Volet.com (Formerly Advcash)
+238	UniBank
+157	Paysend.com
+303	SEPA Instant
+144	ForteBank
+349	ABB Bank
+65	Revolut
+78	Wise
+561	Expressbank
+558	Rabitabank
+560	Yelo Bank
+533	Банк Русский Стандарт
+51	Payeer
+550	Simply
+64	Raiffeisenbank
+
+=== PKR ===
+143	Easypaisa-PK Only
+14	Bank Transfer
+148	Jazzcash
+473	NayaPay
+472	Meezan Bank
+474	Allied Bank
+51	Payeer
+96	Cash app
+28	Gcash
+1	А-Банк
+471	United Bank
+410	PayPay
+470	PalmPay
+87	Western Union
+174	BOS Bank
+520	Opay
+52	Paymaya
+56	Perfect Money
+172	Upaisa
+476	Faysal Bank
+25	EasyPay
+569	State Bank
+315	urpay
+646	SadaPay
+77	Transfers with specific bank
+475	HBL Microfinance Bank
+18	Cash Deposit to Bank
+508	Standard chartered bank
+267	Rocket
+78	Wise
+29	Google Pay
+65	Revolut
+175	stc pay
+515	First Bank
+40	Mobile Top-up
+150	Kaspi Bank
+81	UnionBank of the Philippines
+
+=== KES ===
+176	M-Pesa Kenya(Safaricom)
+109	M-pesa Paybill
+14	Bank Transfer
+6	Airtel Money
+504	Stanbic Ibtc Bank
+178	MTN Mobile Money
+5	Volet.com (Formerly Advcash)
+50	Payall
+97	Chipper Cash
+41	MoMo
+25	EasyPay
+1	А-Банк
+177	M-Pesa(Vodafone)
+182	Arca
+78	Wise
+261	Dashen
+408	International Wire
+503	NCBA
+180	EQ Bank
+500	Kuda
+183	Tigo Pesa
+162	Skrill
+634	Mpesa Pochi la Biashara
+54	PayPal
+502	Equity
+170	WorldRemit
+179	Afriex
+40	Mobile Top-up
+664	I&M Bank
+18	Cash Deposit to Bank
+252	Pix
+7	AirTM
+501	ABSA
+593	Pyypl
+65	Revolut
+82	UPI
+77	Transfers with specific bank
+526	Ecobank
+530	Access Bank
+
+=== SEK ===
+65	Revolut
+14	Bank Transfer
+375	Swish
+78	Wise
+40	Mobile Top-up
+303	SEPA Instant
+156	N26
+118	SEPA
+162	Skrill
+29	Google Pay
+158	Paysera
+73	SWIFT
+374	Bank BRI
+328	ZEN
+55	Paytm
+540	Swedbank
+17	BCA Mobile
+82	UPI
+478	(unknown)
+157	Paysend.com
+176	M-Pesa Kenya(Safaricom)
+376	OCBC NISP
+18	Cash Deposit to Bank
+77	Transfers with specific bank
+166	UniCredit
+54	PayPal
+220	Bank transfer (India)
+111	NETELLER
+115	Permata Me
+
+=== UAH ===
+43	Monobank (Карта)
+60	Privat Bank
+1	А-Банк
+61	PUMB
+46	Oschadbank
+14	Bank Transfer
+544	Izibank
+545	Bank Vlasnyi Rakhunok
+64	Raiffeisenbank
+63	Raiffeisen Bank Aval
+80	Ukrsibbank
+45	NEO
+49	OTP Bank
+31	Idea Bank
+74	Tascombank
+22	Credit Agricole
+342	GEO Pay
+34	KredoBank
+548	Ukrgasbank
+13	Bank Pivdenny
+526	Ecobank
+5	Volet.com (Formerly Advcash)
+547	Pravex Bank
+663	Umoney
+78	Wise
+40	Mobile Top-up
+546	Forward Bank
+659	Monobank (IBAN)
+623	Sense SuperApp
+660	ПриватБанк (Карта)
+18	Cash Deposit to Bank
+625	Credit Dnipro
+661	ПриватБанк (IBAN)
+90	Наличные
+624	Unex Bank
+
+=== ARS ===
+129	Mercadopago
+123	Banco Brubank
+14	Bank Transfer
+128	Lemon Cash
+134	Uala
+131	Prex
+135	Wilobank
+124	Banco del Sol
+430	Billetera Personal
+16	BBVA
+77	Transfers with specific bank
+54	PayPal
+5	Volet.com (Formerly Advcash)
+280	Altyn Bank
+125	Santander Rio (Argentina)
+127	Bank RBK
+132	Reba
+130	Pago Movil
+162	Skrill
+56	Perfect Money
+73	SWIFT
+133	Santander Poland
+7	AirTM
+87	Western Union
+416	Balance
+4	7-Eleven
+196	Bank Transfer (Argentina)
+78	Wise
+252	Pix
+18	Cash Deposit to Bank
+126	BancolombiaS.A
+33	JKOPAY
+
+=== KZT ===
+150	Kaspi Bank
+203	Halyk Bank
+211	Банк ЦентрКредит (KZ)
+127	Bank RBK
+40	Mobile Top-up
+415	HalkBank
+60	Privat Bank
+122	Ziraat
+144	ForteBank
+342	GEO Pay
+283	Uzcard
+202	MAIB
+627	Bereke Bank
+61	PUMB
+65	Revolut
+262	Eurasian Bank
+18	Cash Deposit to Bank
+551	KoronaPay
+162	Skrill
+64	Raiffeisenbank
+281	Nurbank
+550	Simply
+563	Jusan Bank
+149	(unknown)
+5	Volet.com (Formerly Advcash)
+294	Elcart
+14	Bank Transfer
+1	А-Банк
+77	Transfers with specific bank
+165	TBC Bank
+280	Altyn Bank
+62	QIWI
+537	finansbank
+263	Home Credit Kazakhstan
+549	Freedom Bank
+57	PhonePe
+46	Oschadbank
+168	Victoriabank
+114	Papara
+433	DCBank
+282	Humo
+43	Monobank (Карта)
+413	Akbank
+412	VakifBank
+110	Mandiri Pay
+82	UPI
+273	Xalq Bank
+308	(unknown)
+
+=== SAR ===
+175	stc pay
+343	Al Rajhi Bank
+14	Bank Transfer
+315	urpay
+344	Saudi National Bank (AlAhli Bank)
+484	Al-Rajhi Bank
+211	Банк ЦентрКредит (KZ)
+147	ING
+50	Payall
+313	Alinma Bank
+93	Bank of America
+259	CashU
+1	А-Банк
+233	BCR Bank
+162	Skrill
+169	Vodafone cash
+77	Transfers with specific bank
+18	Cash Deposit to Bank
+346	The Saudi British Bank (SABB)
+32	IMPS
+16	BBVA
+78	Wise
+328	ZEN
+182	Arca
+347	Arab Bank
+348	Liv. KSA
+56	Perfect Money
+351	WavePay
+143	Easypaisa-PK Only
+349	ABB Bank
+118	SEPA
+172	Upaisa
+292	mBank
+65	Revolut
+345	Riyad Bank
+96	Cash app
+310	Ahlibank
+87	Western Union
+148	Jazzcash
+95	Bundle
+10	Apple Pay
+299	STP
+82	UPI
+7	AirTM
+249	Bank Transfer (Middle East)
+155	Moneygram
+5	Volet.com (Formerly Advcash)
+57	PhonePe
+54	PayPal
+21	Coinpay
+473	NayaPay
+51	Payeer
+111	NETELLER
+593	Pyypl
+
+=== INR ===
+82	UPI
+29	Google Pay
+57	PhonePe
+14	Bank Transfer
+55	Paytm
+27	FPS
+520	Opay
+463	Canara Bank
+464	Airtel Payments Bank
+42	Monikwik
+220	Bank transfer (India)
+461	Federal Bank
+462	Punjab National Bank
+615	Digital eRupee
+162	Skrill
+569	State Bank
+65	Revolut
+6	Airtel Money
+32	IMPS
+78	Wise
+73	SWIFT
+460	Axis Bank
+87	Western Union
+18	Cash Deposit to Bank
+523	Union bank of India
+580	NEFT
+
+=== THB ===
+14	Bank Transfer
+487	Kasikornbank
+107	K Bank
+489	SCB
+18	Cash Deposit to Bank
+56	Perfect Money
+211	Банк ЦентрКредит (KZ)
+53	PayMe
+65	Revolut
+119	ShopeePay-SEA
+483	Wema Bank
+79	True Money
+104	Interbank
+488	TMBThanachart Bank
+36	Line Pay
+486	UBA Bank
+64	Raiffeisenbank
+87	Western Union
+
+=== UZS ===
+282	Humo
+212	KapitalBank
+283	Uzcard
+14	Bank Transfer
+270	Turon Bank
+273	Xalq Bank
+62	QIWI
+290	Uzbek National Bank
+288	Ipoteka Bank
+285	InfinBank
+77	Transfers with specific bank
+286	Uzpromstroybank
+284	Paynet
+53	PayMe
+127	Bank RBK
+165	TBC Bank
+287	Asaka Bank
+289	Agrobank
+157	Paysend.com
+581	Local Card(Yellow)
+
+=== NPR ===
+14	Bank Transfer
+388	Esewa
+387	Khalti
+386	IME Pay
+78	Wise
+385	Bank Transilvania
+40	Mobile Top-up
+
+=== JPY ===
+14	Bank Transfer
+36	Line Pay
+410	PayPay
+483	Wema Bank
+78	Wise
+1	А-Банк
+18	Cash Deposit to Bank
+479	Mitsubishi UFJ Bank
+97	Chipper Cash
+76	Touch n Go
+65	Revolut
+480	SBI Sumishin Net Bank
+481	SMBC
+162	Skrill
+54	PayPal
+4	7-Eleven
+482	Choshi ShinKin
+96	Cash app
+449	PayID
+
+=== MNT ===
+567	Golomt Bank
+566	Khan Bank
+14	Bank Transfer
+568	Trade and Development Bank
+569	State Bank
+571	XacBank
+211	Банк ЦентрКредит (KZ)
+570	Social Pay
+
+=== BDT ===
+275	bKash
+264	Nagad
+14	Bank Transfer
+18	Cash Deposit to Bank
+7	AirTM
+111	NETELLER
+82	UPI
+267	Rocket
+56	Perfect Money
+347	Arab Bank
+645	upay
+40	Mobile Top-up
+77	Transfers with specific bank
+
+=== PLN ===
+159	PKO Bank
+133	Santander Poland
+14	Bank Transfer
+65	Revolut
+292	mBank
+111	NETELLER
+147	ING
+357	Citi Handlowy
+18	Cash Deposit to Bank
+303	SEPA Instant
+22	Credit Agricole
+4	7-Eleven
+7	AirTM
+31	Idea Bank
+51	Payeer
+167	Uphold
+194	ABA
+54	PayPal
+416	Balance
+9	Alior Bank
+157	Paysend.com
+356	Getin Noble Bank
+174	BOS Bank
+139	BNP Paribas
+43	Monobank (Карта)
+358	Bgz Bnp Paribas
+328	ZEN
+154	Millenium
+10	Apple Pay
+355	Bank Pekao
+61	PUMB
+78	Wise
+60	Privat Bank
+1	А-Банк
+73	SWIFT
+118	SEPA
+162	Skrill
+64	Raiffeisenbank
+96	Cash app
+453	Getin Bank
+581	Local Card(Yellow)
+
+=== GBP ===
+78	Wise
+65	Revolut
+14	Bank Transfer
+232	Monzo
+122	Ziraat
+18	Cash Deposit to Bank
+61	PUMB
+330	Bunq
+73	SWIFT
+162	Skrill
+165	TBC Bank
+331	HSBC Bank Middle East Limited - Bahrain
+328	ZEN
+150	Kaspi Bank
+11	Bank of Georgia
+176	M-Pesa Kenya(Safaricom)
+167	Uphold
+157	Paysend.com
+60	Privat Bank
+148	Jazzcash
+179	Afriex
+43	Monobank (Карта)
+252	Pix
+77	Transfers with specific bank
+143	Easypaisa-PK Only
+96	Cash app
+56	Perfect Money
+303	SEPA Instant
+111	NETELLER
+121	Zelle
+79	True Money
+158	Paysera
+329	Starling Bank
+54	PayPal
+139	BNP Paribas
+27	FPS
+147	ING
+175	stc pay
+166	UniCredit
+1	А-Банк
+51	Payeer
+32	IMPS
+10	Apple Pay
+5	Volet.com (Formerly Advcash)
+87	Western Union
+226	Lloyds Bank
+311	HSBC Uruguay
+48	OTP
+119	ShopeePay-SEA
+207	Venmo
+151	Kuveyt Turk
+155	Moneygram
+7	AirTM
+408	International Wire
+118	SEPA
+593	Pyypl
+29	Google Pay
+
+=== BYN ===
+14	Bank Transfer
+1	А-Банк
+334	PriorBank
+554	Bank Reshenie
+332	MTBank
+336	Technobank
+292	mBank
+62	QIWI
+54	PayPal
+43	Monobank (Карта)
+90	Наличные
+141	Cartes Bancaires
+40	Mobile Top-up
+551	KoronaPay
+333	Paritet Bank
+337	TK Bank
+335	Statusbank
+211	Банк ЦентрКредит (KZ)
+202	MAIB
+289	Agrobank
+10	Apple Pay
+159	PKO Bank
+65	Revolut
+496	Techcombank
+60	Privat Bank
+5	Volet.com (Formerly Advcash)
+64	Raiffeisenbank
+
+=== HUF ===
+65	Revolut
+14	Bank Transfer
+78	Wise
+56	Perfect Money
+408	International Wire
+409	Erste Bank
+328	ZEN
+49	OTP Bank
+118	SEPA
+407	K&H Bank
+166	UniCredit
+258	CIB Bank
+5	Volet.com (Formerly Advcash)
+
+=== PHP ===
+28	Gcash
+52	Paymaya
+14	Bank Transfer
+19	CIMB Niaga
+597	China Bank
+586	Komo Bank
+37	Maybank
+21	Coinpay
+81	UnionBank of the Philippines
+20	Coin.ph
+65	Revolut
+484	Al-Rajhi Bank
+79	True Money
+119	ShopeePay-SEA
+117	SEA Bank
+38	Metropolitan Bank of the Philippines
+599	Rizal Commercial Banking Corporation
+527	Union Bank
+87	Western Union
+467	CIMB
+600	Security Bank
+16	BBVA
+562	BDO
+5	Volet.com (Formerly Advcash)
+7	AirTM
+58	PNB
+215	Bank of the philippine Islands (BPI)
+598	GoTyme Bank
+35	LandBank of the Philippines
+485	Banco De Oro (BDO)
+147	ING
+18	Cash Deposit to Bank
+410	PayPay
+91	Grab Pay
+69	Shopee
+
+=== KWD ===
+53	PayMe
+14	Bank Transfer
+314	National Bank of Kuwait (K.S.C) (NBK)
+5	Volet.com (Formerly Advcash)
+426	Kuwait Finance House (KFH)
+162	Skrill
+78	Wise
+73	SWIFT
+108	LinkAja
+77	Transfers with specific bank
+151	Kuveyt Turk
+429	Burgan Bank (K.S.C) (Burgan)
+430	Billetera Personal
+431	AYA Pay
+432	Banco Atlantida
+369	BanBif
+310	Ahlibank
+169	Vodafone cash
+1	А-Банк
+18	Cash Deposit to Bank
+57	PhonePe
+427	Boubyan Bank (K.S.C) (Boubyan)
+10	Apple Pay
+177	M-Pesa(Vodafone)
+48	OTP
+428	Gulf Bank (K.S.C) (GBK)
+87	Western Union
+362	Attijari Bank
+11	Bank of Georgia
+249	Bank Transfer (Middle East)
+
+=== RUB ===
+64	Raiffeisenbank
+583	Local Card(Red)
+150	Kaspi Bank
+1	А-Банк
+593	Pyypl
+541	BCS bank
+382	SBP
+657	Банковский Перевод (RU)
+90	Наличные
+550	Simply
+51	Payeer
+18	Cash Deposit to Bank
+614	Sovkombank
+543	Кредит Европа Банк
+613	PSB (Promsvyazbank)
+581	Local Card(Yellow)
+63	Raiffeisen Bank Aval
+231	CitiBank (Russia)
+612	Уралсиб
+5	Volet.com (Formerly Advcash)
+533	Банк Русский Стандарт
+551	KoronaPay
+626	Yandex Bank
+56	Perfect Money
+549	Freedom Bank
+40	Mobile Top-up
+542	Renaissance Credit Bank
+563	Jusan Bank
+595	OZON Bank
+166	UniCredit
+584	Local Bank(R-Green)
+211	Банк ЦентрКредит (KZ)
+585	Local Bank(S-Green)
+582	Local Card(Green)
+49	OTP Bank
+27	FPS
+383	MIR
+
+=== COP ===
+126	BancolombiaS.A
+209	Nequi
+236	Daviplata
+703	Llaves Bre-B
+189	Zinli
+162	Skrill
+137	Banesco
+14	Bank Transfer
+158	Paysera
+277	Movii
+134	Uala
+87	Western Union
+157	Paysend.com
+78	Wise
+96	Cash app
+278	Banco Falabella
+276	Banco de Bogota
+268	Scotiabank Colpatria
+668	Banco Caja Social
+121	Zelle
+243	Banco Davivienda SV
+111	NETELLER
+16	BBVA
+150	Kaspi Bank
+279	Efecty
+170	WorldRemit
+223	Banco Estado
+93	Bank of America
+142	Davivienda S.A
+5	Volet.com (Formerly Advcash)
+18	Cash Deposit to Bank
+155	Moneygram
+129	Mercadopago
+77	Transfers with specific bank
+
+=== USD ===
+78	Wise
+11	Bank of Georgia
+121	Zelle
+51	Payeer
+65	Revolut
+549	Freedom Bank
+54	PayPal
+142	Davivienda S.A
+262	Eurasian Bank
+122	Ziraat
+382	SBP
+370	Plin
+569	State Bank
+229	WingMoney
+56	Perfect Money
+188	Banco Guayaquil
+7	AirTM
+306	Banque Misr
+5	Volet.com (Formerly Advcash)
+19	CIMB Niaga
+476	Faysal Bank
+255	Banco Union
+154	Millenium
+176	M-Pesa Kenya(Safaricom)
+191	Banco general panama
+316	Mercantil
+348	Liv. KSA
+498	ACB
+109	M-pesa Paybill
+299	STP
+30	GoPay
+32	IMPS
+28	Gcash
+411	DenizBank
+335	Statusbank
+77	Transfers with specific bank
+237	Red Pagos
+18	Cash Deposit to Bank
+295	DemirBank
+232	Monzo
+10	Apple Pay
+104	Interbank
+212	KapitalBank
+187	Banesco Panama
+433	DCBank
+283	Uzcard
+375	Swish
+60	Privat Bank
+365	BRD Bank
+586	Komo Bank
+329	Starling Bank
+96	Cash app
+55	Paytm
+546	Forward Bank
+503	NCBA
+165	TBC Bank
+215	Bank of the philippine Islands (BPI)
+125	Santander Rio (Argentina)
+352	FNB-ewallet
+388	Esewa
+218	OCA Blue
+131	Prex
+147	ING
+245	BCEL
+542	Renaissance Credit Bank
+100	Garanti
+14	Bank Transfer
+595	OZON Bank
+561	Expressbank
+537	finansbank
+1	А-Банк
+359	Credo Bank
+52	Paymaya
+254	Banco Fucerep
+123	Banco Brubank
+244	TD Bank
+451	Livi Bank
+50	Payall
+280	Altyn Bank
+157	Paysend.com
+225	Interac e-transfer
+312	Banque du Caire
+593	Pyypl
+269	Scotiabank Uruguay
+106	Jenius PayMe
+61	PUMB
+303	SEPA Instant
+473	NayaPay
+208	Bank of the Republic of Uruguay
+119	ShopeePay-SEA
+236	Daviplata
+302	Bank Transfer (Venezuela)
+82	UPI
+197	Banco del pacifico
+214	Banco Santander Uruguay
+256	Bandes Uruguay
+383	MIR
+222	Banco Agricola SV
+198	Banistmo Panama
+200	Banco de Credito
+99	Flip
+579	RTGS
+178	MTN Mobile Money
+343	Al Rajhi Bank
+371	ArmEconomBank
+228	Transferencia ACH (Panamá)
+239	Banco de Costa Rica
+533	Банк Русский Стандарт
+209	Nequi
+111	NETELLER
+220	Bank transfer (India)
+217	Bakong
+552	Bakai Bank
+252	Pix
+332	MTBank
+273	Xalq Bank
+261	Dashen
+49	OTP Bank
+311	HSBC Uruguay
+238	UniBank
+127	Bank RBK
+535	DenizBank
+581	Local Card(Yellow)
+158	Paysera
+149	(unknown)
+291	Optima Bank
+322	Banplus
+70	SmartPay
+233	BCR Bank
+432	Banco Atlantida
+110	Mandiri Pay
+448	Standard Chartered Hong Kong
+40	Mobile Top-up
+366	Société Générale Commercial Maroc
+508	Standard chartered bank
+226	Lloyds Bank
+398	Ecopayz
+103	Inecobank
+155	Moneygram
+399	LeoPay
+665	Wally Tech
+130	Pago Movil
+412	VakifBank
+357	Citi Handlowy
+265	Pasha Bank
+390	Banque de développement local (BDL)
+36	Line Pay
+144	ForteBank
+260	DayhanBank
+210	BAC Credomatic
+114	Papara
+481	SMBC
+146	Idram
+207	Venmo
+33	JKOPAY
+193	Mercantil Bank Panama
+248	Banco Promerica SV
+259	CashU
+425	Central Bank of The Bahamas
+139	BNP Paribas
+224	FinComBank
+76	Touch n Go
+489	SCB
+116	Pipol Pay
+268	Scotiabank Colpatria
+168	Victoriabank
+267	Rocket
+143	Easypaisa-PK Only
+186	Banco Pichinca
+511	Domicilary Bank
+164	Sofort
+151	Kuveyt Turk
+493	BIDV
+275	bKash
+309	Qatar National Bank QNB
+213	Ameriabank
+427	Boubyan Bank (K.S.C) (Boubyan)
+469	OCBC Bank
+405	Banco Santander Chile
+566	Khan Bank
+555	m10
+447	CTBC Bank
+247	Banco Lafise Nicaragua
+182	Arca
+266	Recargas prepago
+328	ZEN
+292	mBank
+408	International Wire
+416	Balance
+206	Facebank International
+169	Vodafone cash
+93	Bank of America
+391	Banque de l'agriculture et du développement rural (BADR)
+356	Getin Noble Bank
+235	Banks transfer (Vietnam)
+324	Banco Activo
+53	PayMe
+203	Halyk Bank
+43	Monobank (Карта)
+499	Fidelity
+397	Bank Hapoalim
+189	Zinli
+582	Local Card(Green)
+551	KoronaPay
+124	Banco del Sol
+101	GoMoney
+163	Societe Generale
+162	Skrill
+64	Raiffeisenbank
+29	Google Pay
+330	Bunq
+227	Scotiabank Panama
+201	ScotiaBank Peru
+494	Vietcombank
+241	Multibank Panama
+216	BAC Costa Rica
+21	Coinpay
+466	Hong Leong Bank
+288	Ipoteka Bank
+577	Banque Zitouna
+115	Permata Me
+112	Orange Money-OM
+482	Choshi ShinKin
+194	ABA
+250	Cashpack
+190	Produbanco
+105	Itaú Brazil
+211	Банк ЦентрКредит (KZ)
+129	Mercadopago
+475	HBL Microfinance Bank
+554	Bank Reshenie
+468	RHB Bank
+514	Clear Junction Limited, City London, Country UK.
+26	Foward Bank
+73	SWIFT
+393	MONETA Money Bank
+314	National Bank of Kuwait (K.S.C) (NBK)
+450	Shanghai Commercial Bank
+517	Fidelity Bank
+392	Banque nationale d’Algérie (BNA)
+435	Spitamen Bank
+38	Metropolitan Bank of the Philippines
+243	Banco Davivienda SV
+445	WeLab Bank
+298	KICB
+223	Banco Estado
+400	iCard
+545	Bank Vlasnyi Rakhunok
+192	Credit Bank of Peru
+133	Santander Poland
+461	Federal Bank
+518	Kuda Bank
+543	Кредит Европа Банк
+57	PhonePe
+253	BNC Banco Nacional de Credito
+15	Bank Transfer(pero)
+251	Central Bank of Uruguay
+113	OVO
+367	Crédit Banque Populaire du Maroc
+195	Mony
+520	Opay
+515	First Bank
+81	UnionBank of the Philippines
+231	CitiBank (Russia)
+196	Bank Transfer (Argentina)
+152	La Banque postale
+35	LandBank of the Philippines
+242	BBVA Uruguay
+457	Chunghwa Post
+202	MAIB
+394	Fio banka
+444	ZA Bank
+17	BCA Mobile
+87	Western Union
+404	MACH
+436	Bank Eskhata
+270	Turon Bank
+456	Bank SinoPac
+46	Oschadbank
+339	CIBC
+45	NEO
+234	Banco BAC Credomatic SV
+504	Stanbic Ibtc Bank
+591	InstaPay
+559	Bank Respublika
+320	Bancaribe
+246	Banco Hipotecario SV
+304	CIB
+479	Mitsubishi UFJ Bank
+98	Dash-App
+41	MoMo
+79	True Money
+516	GTB Bank (Guarantee Trust Bank)
+373	IDBank
+325	Banco Plaza
+166	UniCredit
+588	Sinarmas
+536	enpara.com
+34	KredoBank
+459	Cathay Bank
+171	Yape
+334	PriorBank
+37	Maybank
+205	Itaú Uruguay
+340	BMO
+141	Cartes Bancaires
+462	Punjab National Bank
+264	Nagad
+485	Banco De Oro (BDO)
+167	Uphold
+421	First Caribbean Bank (Bahamas)
+321	Bancamiga
+426	Kuwait Finance House (KFH)
+258	CIB Bank
+63	Raiffeisen Bank Aval
+547	Pravex Bank
+509	CTBC
+230	Banco de Chile
+544	Izibank
+563	Jusan Bank
+374	Bank BRI
+419	Credit Libanais
+446	Hang Seng Bank
+428	Gulf Bank (K.S.C) (GBK)
+512	Carbon microfinance bank
+507	NMB
+580	NEFT
+97	Chipper Cash
+361	CIH Bank
+199	Banco Bolivariano
+263	Home Credit Kazakhstan
+221	Bank transfer (Costa Rica)
+420	whish MONEY
+455	E.SUN Bank
+293	Commercial bank Kyrgyzstan
+31	Idea Bank
+24	DSK Bank
+441	Bank of China (Hong Kong)
+430	Billetera Personal
+249	Bank Transfer (Middle East)
+296	O!Money
+148	Jazzcash
+145	iDEAL
+172	Upaisa
+472	Meezan Bank
+69	Shopee
+150	Kaspi Bank
+360	Liberty Bank
+550	Simply
+132	Reba
+331	HSBC Bank Middle East Limited - Bahrain
+424	Central Bank of The Bahamas
+140	Caisse d'Epargne
+344	Saudi National Bank (AlAhli Bank)
+467	CIMB
+180	EQ Bank
+372	ArmBusinessBank
+284	Paynet
+454	Bank of East Asia
+422	RBC Royal bank (Bahamas)
+384	CEC
+279	Efecty
+300	Citibanamex
+175	stc pay
+526	Ecobank
+301	OXXO
+452	PAO Bank
+204	Bank transfer (Cambodia)
+558	Rabitabank
+578	ACLEDA
+438	Korti milli
+368	Ligo
+12	Bank Jago
+118	SEPA
+126	BancolombiaS.A
+276	Banco de Bogota
+389	Banque extérieure d’Algérie (BEA)
+27	FPS
+500	Kuda
+128	Lemon Cash
+108	LinkAja
+16	BBVA
+25	EasyPay
+570	Social Pay
+282	Humo
+453	Getin Bank
+281	Nurbank
+418	Bank of Beirut
+437	International Bank of Tajikistan
+342	GEO Pay
+423	Scotiabank (Bahamas)
+177	M-Pesa(Vodafone)
+562	BDO
+376	OCBC NISP
+174	BOS Bank
+294	Elcart
+358	Bgz Bnp Paribas
+567	Golomt Bank
+308	(unknown)
+20	Coin.ph
+585	Local Bank(S-Green)
+156	N26
+297	RSK Bank
+369	BanBif
+417	Bank Audi
+345	Riyad Bank
+338	RBC Royal Bank
+219	Bank Transfer (Turkey)
+538	RWS BANK
+502	Equity
+138	Bizum
+480	SBI Sumishin Net Bank
+413	Akbank
+406	Banco Itau de Chile
+564	KHQR
+386	IME Pay
+539	Fineco
+137	Banesco
+72	Sportbank
+513	FCMB
+350	Bank Transfer (Taiwan)
+285	InfinBank
+13	Bank Pivdenny
+91	Grab Pay
+594	Fibabanka
+505	Bancoppel
+429	Burgan Bank (K.S.C) (Burgan)
+463	Canara Bank
+42	Monikwik
+524	Jaiz Bank
+22	Credit Agricole
+402	Banco Santander (Spain)
+364	BMCE Bank
+573	CliQ
+465	Public Bank Berhad
+107	K Bank
+117	SEA Bank
+409	Erste Bank
+277	Movii
+590	Oldubil
+487	Kasikornbank
+415	HalkBank
+278	Banco Falabella
+385	Bank Transilvania
+95	Bundle
+443	Mox Bank
+407	K&H Bank
+442	HSBC Hong Kong
+589	Blu
+326	Recarga Pines
+506	Banregio
+48	OTP
+439	Orienbank
+305	National Bank of Egypt (NBE)
+387	Khalti
+355	Bank Pekao
+
+=== EGP ===
+169	Vodafone cash
+591	InstaPay
+14	Bank Transfer
+10	Apple Pay
+18	Cash Deposit to Bank
+258	CIB Bank
+96	Cash app
+315	urpay
+40	Mobile Top-up
+304	CIB
+310	Ahlibank
+56	Perfect Money
+312	Banque du Caire
+650	Aani
+87	Western Union
+307	Alex Bank
+593	Pyypl
+592	telda
+78	Wise
+311	HSBC Uruguay
+22	Credit Agricole
+225	Interac e-transfer
+314	National Bank of Kuwait (K.S.C) (NBK)
+51	Payeer
+309	Qatar National Bank QNB
+7	AirTM
+162	Skrill
+308	(unknown)
+175	stc pay
+112	Orange Money-OM
+347	Arab Bank
+306	Banque Misr
+305	National Bank of Egypt (NBE)
+77	Transfers with specific bank
+5	Volet.com (Formerly Advcash)
+189	Zinli
+537	finansbank
+29	Google Pay
+313	Alinma Bank
+27	FPS
+177	M-Pesa(Vodafone)
+363	Attijariwafa National Bank
+65	Revolut
+54	PayPal
+
+=== DZD ===
+152	La Banque postale
+14	Bank Transfer
+160	Postepay
+389	Banque extérieure d’Algérie (BEA)
+392	Banque nationale d’Algérie (BNA)
+87	Western Union
+5	Volet.com (Formerly Advcash)
+158	Paysera
+18	Cash Deposit to Bank
+78	Wise
+163	Societe Generale
+51	Payeer
+56	Perfect Money
+96	Cash app
+391	Banque de l'agriculture et du développement rural (BADR)
+249	Bank Transfer (Middle East)
+139	BNP Paribas
+390	Banque de développement local (BDL)
+310	Ahlibank
+484	Al-Rajhi Bank
+
+=== ETB ===
+628	CBE
+629	Tele Birr
+630	Abyssinia
+631	Awash
+632	CBE Birr
+633	Corporate Bank Of Oromia
+14	Bank Transfer
+
+=== KGS ===
+292	mBank
+291	Optima Bank
+552	Bakai Bank
+294	Elcart
+293	Commercial bank Kyrgyzstan
+295	DemirBank
+40	Mobile Top-up
+593	Pyypl
+280	Altyn Bank
+298	KICB
+203	Halyk Bank
+14	Bank Transfer
+64	Raiffeisenbank
+150	Kaspi Bank
+121	Zelle
+296	O!Money
+297	RSK Bank
+553	Aiyl Bank
+551	KoronaPay
+
+=== PEN ===
+104	Interbank
+171	Yape
+200	Banco de Credito
+370	Plin
+702	Lemon Cash Perú
+368	Ligo
+201	ScotiaBank Peru
+137	Banesco
+18	Cash Deposit to Bank
+369	BanBif
+14	Bank Transfer
+16	BBVA
+77	Transfers with specific bank
+192	Credit Bank of Peru
+87	Western Union
+278	Banco Falabella
+7	AirTM
+131	Prex
+162	Skrill
+111	NETELLER
+
+=== NZD ===
+14	Bank Transfer
+78	Wise
+65	Revolut
+328	ZEN
+329	Starling Bank
+18	Cash Deposit to Bank
+87	Western Union
+77	Transfers with specific bank
+232	Monzo
+226	Lloyds Bank
+162	Skrill
+111	NETELLER
+54	PayPal
+313	Alinma Bank
+
+=== XAF ===
+112	Orange Money-OM
+637	Afriland First Bank
+635	UBA Cameroun
+41	MoMo
+178	MTN Mobile Money
+6	Airtel Money
+526	Ecobank
+636	Moov Money
+14	Bank Transfer
+
+=== BRL ===
+252	Pix
+416	Balance
+129	Mercadopago
+78	Wise
+124	Banco del Sol
+353	PicPay
+7	AirTM
+77	Transfers with specific bank
+5	Volet.com (Formerly Advcash)
+105	Itaú Brazil
+192	Credit Bank of Peru
+29	Google Pay
+132	Reba
+14	Bank Transfer
+104	Interbank
+354	PagSeguro
+45	NEO
+76	Touch n Go
+
