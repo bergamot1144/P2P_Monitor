@@ -3,7 +3,7 @@
   "WorkspaceRootPath": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|C:\\Users\\Bergamot\\Desktop\\P2P_monitor\\P2P_monitor.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "AbsoluteMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\P2P_monitor.py||{8B382828-6202-11D1-8870-0000F87579D2}",
       "RelativeMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|solutionrelative:P2P_monitor.py||{8B382828-6202-11D1-8870-0000F87579D2}"
     }
   ],
@@ -32,7 +32,7 @@
               "RelativeDocumentMoniker": "p2p_monitor.py",
               "ToolTip": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\p2p_monitor.py",
               "RelativeToolTip": "p2p_monitor.py",
-              "ViewState": "AgIAAJQDAAAAAAAAAAAjwKEDAAAPAAAAAAAAAA==",
+              "ViewState": "AgIAAE8FAAAAAAAAAAAkwGIFAAAPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
               "WhenOpened": "2025-08-22T04:49:59.194Z",
               "EditorCaption": ""
