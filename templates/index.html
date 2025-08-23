@@ -1,0 +1,234 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <title>P2P Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="wrap">
+        <h1>P2P Dashboard <span class="muted" id="ts"></span></h1>
+
+        <!-- Глобальные фильтры -->
+        <div class="card">
+            <form id="filters" class="row" onsubmit="apply(event)">
+                <div>
+                    <label>Актив</label>
+                    <select id="asset">
+                        <option>USDT</option>
+                        <option>BTC</option>
+                        <option>ETH</option>
+                        <option>BNB</option>
+                        <option>SOL</option>
+                        <option>USDC</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Фиат</label>
+                    <select id="fiat">
+                        <option>UAH</option>
+                        <option>USD</option>
+                        <option>EUR</option>
+                        <option>RUB</option>
+                        <option>KZT</option>
+                        <option>TRY</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Тип сделки</label>
+                    <select id="side">
+                        <option value="SELL" selected>SELL (вы продаёте актив)</option>
+                        <option value="BUY">BUY (вы покупаете актив)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Сумма (фиат)</label>
+                    <input id="amount" type="number" step="1" value="20000" />
+                </div>
+                <div style="align-self:end">
+                    <button type="submit">Применить</button>
+                    <button type="button" onclick="refreshNow()">Обновить</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Ряд 1: Binance • Bybit -->
+        <div class="grid">
+            <!-- Binance -->
+            <div class="card" id="binance_card">
+                <div class="loader" id="binance_loader">Загрузка...</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <h2 style="margin:0;">Binance</h2>
+                    <button class="btn-small" type="button" onclick="toggleFilters('binance_filters', this)">Фильтры</button>
+                </div>
+                <div id="binance_status" class="ok" style="display:none">OK</div>
+                <div id="binance_error" class="error" style="display:none"></div>
+                <div class="rate" id="binance_avg">—</div>
+                <div class="muted" id="binance_prices">—</div>
+
+                <div class="row" id="binance_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
+                    <div>
+                        <label>Верифицированные продавцы</label>
+                        <select id="merchant_binance">
+                            <option value="true">Да</option>
+                            <option value="false">Нет</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Платёжный метод</label>
+                        <div class="mdrop" id="dd_binance" onclick="event.stopPropagation()">
+                            <button type="button" class="mdrop-btn" onclick="mdropToggle('dd_binance'); event.stopPropagation();">
+                                <span>Выбрать методы</span> <span class="count" id="dd_binance_count">0</span>
+                            </button>
+                            <div class="mdrop-menu">
+                                <div class="mdrop-head">
+                                    <input id="dd_binance_search" placeholder="Поиск метода..." oninput="onSearchInput('dd_binance')" />
+                                </div>
+                                <div class="mdrop-body">
+                                    <div class="mdrop-grid" id="dd_binance_grid"></div>
+                                </div>
+                                <div class="mdrop-foot">
+                                    <button type="button" class="js-confirm">Подтвердить</button>
+                                    <button type="button" class="js-reset">Сбросить</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead><tr><th>#</th><th>Трейдер</th><th>Цена</th><th>Объём</th><th>Мин</th><th>Макс</th></tr></thead>
+                    <tbody id="binance_tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Bybit -->
+            <div class="card" id="bybit_card">
+                <div class="loader" id="bybit_loader">Загрузка...</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <h2 style="margin:0;">Bybit</h2>
+                    <button class="btn-small" type="button" onclick="toggleFilters('bybit_filters', this)">Фильтры</button>
+                </div>
+                <div id="bybit_status" class="ok" style="display:none">OK</div>
+                <div id="bybit_error" class="error" style="display:none"></div>
+                <div class="rate" id="bybit_avg">—</div>
+                <div class="muted" id="bybit_prices">—</div>
+
+                <div class="row" id="bybit_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
+                    <div>
+                        <label>Верифицированные продавцы</label>
+                        <select id="verified_bybit">
+                            <option value="true">Да</option>
+                            <option value="false" selected>Нет</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Платёжные методы</label>
+                        <div class="mdrop" id="dd_bybit" onclick="event.stopPropagation()">
+                            <button type="button" class="mdrop-btn" onclick="mdropToggle('dd_bybit'); event.stopPropagation();">
+                                <span>Выбрать методы</span> <span class="count" id="dd_bybit_count">0</span>
+                            </button>
+                            <div class="mdrop-menu">
+                                <div class="mdrop-head">
+                                    <input id="dd_bybit_search" placeholder="Поиск метода..." oninput="onSearchInput('dd_bybit')" />
+                                </div>
+                                <div class="mdrop-body">
+                                    <div class="mdrop-grid" id="dd_bybit_grid"></div>
+                                </div>
+                                <div class="mdrop-foot">
+                                    <button type="button" class="js-confirm">Подтвердить</button>
+                                    <button type="button" class="js-reset">Сбросить</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead><tr><th>#</th><th>Трейдер</th><th>Цена</th><th>Объём</th><th>Мин</th><th>Макс</th></tr></thead>
+                    <tbody id="bybit_tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Ряд 2: XE • Google Finance -->
+        <div class="grid">
+            <!-- XE -->
+            <div class="card" id="xe_card">
+                <div class="loader" id="xe_loader">Загрузка...</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <h2 style="margin:0;">XE.com <span id="xe_pair" class="muted"></span></h2>
+                    <button class="btn-small" type="button" onclick="toggleFilters('xe_filters', this)">Фильтры</button>
+                </div>
+                <div class="row" id="xe_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
+                    <div>
+                        <label>XE From</label>
+                        <input id="xe_from" list="xe_codes" placeholder="например, USD" />
+                    </div>
+                    <div>
+                        <label>XE To</label>
+                        <input id="xe_to" list="xe_codes" placeholder="например, UAH" />
+                    </div>
+                    <div style="align-self:end">
+                        <button class="btn-small" type="button" onclick="applyXE()">Применить XE</button>
+                        <button class="btn-small" type="button" onclick="refreshXENow()">Обновить XE</button>
+                    </div>
+                </div>
+                <datalist id="xe_codes"></datalist>
+
+                <div id="xe_error" class="error" style="display:none"></div>
+                <div class="rate" id="xe_price">—</div>
+                <div class="muted">
+                    <span id="xe_ts">—</span>
+                    &nbsp;·&nbsp;<span id="xe_src" class="muted">—</span>
+                    &nbsp;·&nbsp;<a id="xe_link" href="#" target="_blank" rel="noopener" style="color:var(--muted)">Открыть XE</a>
+                </div>
+                <div style="margin-top:8px;">
+                    <span class="muted">Спред к Binance: <span id="xe_spread_bin">—</span></span>
+                    &nbsp;&nbsp;<span class="muted">Спред к Bybit: <span id="xe_spread_byb">—</span></span>
+                </div>
+            </div>
+
+            <!-- Google Finance -->
+            <div class="card" id="gf_card">
+                <div class="loader" id="gf_loader">Загрузка...</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <h2 style="margin:0;">Google Finance <span id="gf_pair" class="muted"></span></h2>
+                    <button class="btn-small" type="button" onclick="toggleFilters('gf_filters', this)">Фильтры</button>
+                </div>
+                <div class="row" id="gf_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
+                    <div>
+                        <label>GF From</label>
+                        <input id="gf_from" list="gf_codes" placeholder="например, USD" />
+                    </div>
+                    <div>
+                        <label>GF To</label>
+                        <input id="gf_to" list="gf_codes" placeholder="например, EUR" />
+                    </div>
+                    <div style="align-self:end">
+                        <button class="btn-small" type="button" onclick="applyGF()">Применить GF</button>
+                        <button class="btn-small" type="button" onclick="refreshGFNow()">Обновить GF</button>
+                    </div>
+                </div>
+                <datalist id="gf_codes"></datalist>
+                <div id="gf_error" class="error" style="display:none"></div>
+                <div class="rate" id="gf_price">—</div>
+                <div class="muted">
+                    <span id="gf_ts">—</span>
+                    &nbsp;·&nbsp;<a id="gf_link" href="#" target="_blank" rel="noopener" style="color:var(--muted)">Открыть котировку</a>
+                </div>
+                <div style="margin-top:8px;">
+                    <span class="muted">Спред к Binance: <span id="gf_spread_bin">—</span></span>
+                    &nbsp;&nbsp;<span class="muted">Спред к Bybit: <span id="gf_spread_byb">—</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <footer class="footer">
+        <span>Powered by bergamot1144</span>
+        <img src="https://cdn0.iconfinder.com/data/icons/fruits-139/185/Bergamot-512.png" alt="logo">
+    </footer>
+</body>
+</html>
