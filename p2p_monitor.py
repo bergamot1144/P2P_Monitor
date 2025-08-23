@@ -1,27 +1,31 @@
 ﻿# p2p_dashboard.py
-# Обновлено:
-# - Мягкая обработка ошибок/пустых данных для Binance/Bybit
-# - XE и Google Finance — в одном ряду, как Binance/Bybit
-# - Фильтры XE: From/To (single-select с поиском) по списку валют из JSON
-# - Автообновление: рынки 30с, XE 15с
-# - use_reloader=False (Playwright)
+# Flask-дэшборд: Binance • Bybit • Google Finance • XE (универсальные пары, устойчивый парсинг больших чисел)
 
 import os
 import re
+import json
 import time
-from typing import Optional, Tuple
+from decimal import Decimal, InvalidOperation, getcontext
+from typing import Optional, Tuple, List, Dict
 
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, Response
 
-# === Playwright для XE ===
-from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError
+# ---- Playwright (мягкий импорт; если нет — XE работает через requests-фоллбек)
+try:
+    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError
+    PLAYWRIGHT_OK = True
+except Exception:
+    PLAYWRIGHT_OK = False
+
+# Точность Decimal для длинных значений (BTC→KZT и т.п.)
+getcontext().prec = 28
 
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 
-# ------------------ Куки / заголовки для P2P ------------------
+# ====================== Заголовки/куки P2P ======================
 BINANCE_COOKIE = os.getenv("BINANCE_COOKIE", "")
 BYBIT_COOKIE   = os.getenv("BYBIT_COOKIE", "")
 
@@ -50,67 +54,161 @@ BYBIT_HEADERS = {
 if BYBIT_COOKIE:
     BYBIT_HEADERS["cookie"] = BYBIT_COOKIE
 
-# ------------------ Утилиты общие ------------------
-def _avg_3_5(prices):
-    return round(sum(prices[2:5]) / 3.0, 6) if len(prices) >= 5 else None
+# ====================== Устойчивое извлечение чисел ===========================
+# Разделители тысяч: пробел, NBSP, узкий NBSP, запятая; десятичный: . или ,
+NUMBER_RE = re.compile(r"(?:\d{1,3}(?:[,\u00A0\u202F ]\d{3})+|\d+)(?:[.,]\d+)?")
 
-def _fmt_float(x):
+def _normalize_number_string(s: str) -> str:
+    """Нормализует строку числа к стандартному виду для Decimal."""
+    s = (s or "").strip()
+    # убрать все «узкие/несущие» пробелы
+    s = s.replace("\u00A0", " ").replace("\u202F", " ")
+    s = re.sub(r"\s+", "", s)  # убрать любые пробелы
+
+    # Если присутствуют и ',' и '.', выбираем крайний правый как десятичный,
+    # остальные удаляем как разделители тысяч
+    if "," in s and "." in s:
+        last_dot = s.rfind(".")
+        last_comma = s.rfind(",")
+        if last_dot > last_comma:
+            # десятичный — точка, запятые убираем
+            s = s.replace(",", "")
+        else:
+            # десятичный — запятая, точки убираем
+            s = s.replace(".", "")
+            s = s.replace(",", ".")
+    else:
+        # Только один из символов . или ,
+        if "," in s:
+            if s.count(",") > 1:
+                # несколько запятых — это тысячные группы
+                s = s.replace(",", "")
+            else:
+                # одна запятая: если после неё ровно 3 цифры — вероятно тысячная группа
+                idx = s.rfind(",")
+                decimals_len = len(s) - idx - 1
+                if decimals_len == 3:
+                    s = s.replace(",", "")
+                else:
+                    s = s.replace(",", ".")
+        # только точки
+        elif "." in s:
+            if s.count(".") > 1:
+                s = s.replace(".", "")
+            else:
+                idx = s.rfind(".")
+                decimals_len = len(s) - idx - 1
+                if decimals_len == 3:
+                    s = s.replace(".", "")
+                # иначе оставляем точку как десятичную
+
+    return s
+
+def to_decimal(num_str: str) -> Decimal:
+    s = _normalize_number_string(num_str)
     try:
-        return float(x)
-    except Exception:
-        try:
-            return float(str(x).replace("\u00A0", "").replace(" ", "").replace(",", "."))
-        except Exception:
-            return None
+        return Decimal(s)
+    except InvalidOperation:
+        return Decimal(0)
 
-# ------------------ Binance ------------------
+def best_decimal_from_text(text: str) -> Optional[Decimal]:
+    """
+    Находит «лучшее» число в тексте:
+    - выбираем совпадение с максимальным количеством цифр (чтобы брать 4,795,807.00, а не «1»);
+    - затем нормализуем и конвертируем в Decimal.
+    """
+    matches = list(NUMBER_RE.finditer(text or ""))
+    if not matches:
+        return None
+    def size_key(m):
+        raw = m.group(0)
+        digits_only = re.sub(r"[^\d]", "", raw)
+        return (len(digits_only), len(raw))  # сначала по числу цифр, потом по общей длине
+    m = max(matches, key=size_key)
+    return to_decimal(m.group(0))
+
+# ====================== Вспомогалки ===========================
+def _avg_3_5(prices: List[Decimal]) -> Optional[Decimal]:
+    if len(prices) >= 5:
+        return (prices[2] + prices[3] + prices[4]) / Decimal(3)
+    return None
+
+def _d(x) -> Optional[Decimal]:
+    try:
+        if x is None:
+            return None
+        if isinstance(x, Decimal):
+            return x
+        return to_decimal(str(x))
+    except Exception:
+        return None
+
+# ====================== Google Finance ==========================
+GF_HEADERS = {
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+    "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+}
+
+def _gf_price_direct(asset: str, fiat: str) -> Tuple[Decimal, str]:
+    A, F = asset.upper(), fiat.upper()
+    url  = f"https://www.google.com/finance/quote/{A}-{F}"
+    r = requests.get(url, headers=GF_HEADERS, timeout=12)
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text, "html.parser")
+
+    blk = soup.select_one(f'div[jscontroller="NdbN0c"][jsname="AS5Pxb"][data-source="{A}"][data-target="{F}"]')
+    if blk and blk.has_attr("data-last-price"):
+        return (to_decimal(blk["data-last-price"]), url)
+
+    node = soup.select_one("div.YMlKec.fxKbKc") or soup.select_one("div.YMlKec")
+    if node and node.text:
+        val = best_decimal_from_text(node.get_text(" ", strip=True))
+        if val is not None:
+            return (val, url)
+
+    m = re.findall(r'data-last-price="([^"]+)"', r.text)
+    if m:
+        return (to_decimal(m[-1]), url)
+
+    raise RuntimeError("GF: не удалось извлечь цену")
+
+def fetch_gf(asset: str, fiat: str) -> Dict:
+    p, url = _gf_price_direct(asset, fiat)
+    return {"pair": f"{asset.upper()}-{fiat.upper()}", "price": float(p), "url": url, "ts": int(time.time())}
+
+# ====================== Binance ================================
 def fetch_binance(asset="USDT", fiat="UAH", side="SELL", pay_types=None, amount="20000", rows=10, merchant=True, page=1):
-    """
-    Возвращает словарь: {items, prices, avg, error}
-    items: top-5 карточек (имя, цена, мин, макс, объём)
-    prices: массив цен top-5
-    avg: среднее по 3–5 (или None, если данных мало)
-    error: текст ошибки, если что-то не так (не бросаем исключение)
-    """
     payload = {
         "asset": asset, "fiat": fiat, "merchantCheck": bool(merchant),
         "page": int(page), "payTypes": list(pay_types or []),
         "publisherType": None, "rows": int(rows),
         "tradeType": side, "transAmount": str(amount),
     }
-    try:
-        r = requests.post(BINANCE_URL, headers=BINANCE_HEADERS, json=payload, timeout=15)
-        r.raise_for_status()
-        js = r.json()
-    except Exception as e:
-        return {"items": [], "prices": [], "avg": None, "error": f"network/json: {e}"}
-
+    r = requests.post(BINANCE_URL, headers=BINANCE_HEADERS, json=payload, timeout=15)
+    r.raise_for_status()
+    js = r.json()
     if js.get("code") != "000000" or "data" not in js:
-        return {"items": [], "prices": [], "avg": None, "error": f"api: {js}"}
-
+        raise RuntimeError(f"Binance API error: {js}")
     data = js["data"] or []
     items, prices = [], []
     for ad in data[:5]:
-        adv = ad.get("adv", {}) or {}
+        adv = ad.get("adv") or {}
         seller = (ad.get("advertiser") or {}).get("nickName") or "-"
-        price  = _fmt_float(adv.get("price"))
+        price  = _d(adv.get("price"))
         if price is None:
             continue
         items.append({
             "name": seller,
-            "price": price,
+            "price": float(price),
             "min": adv.get("minSingleTransAmount"),
             "max": adv.get("maxSingleTransAmount"),
             "volume": adv.get("surplusAmount"),
         })
         prices.append(price)
+    avg = _avg_3_5(prices)
+    return {"items": items, "prices": [float(x) for x in prices], "avg": (float(avg) if avg is not None else None)}
 
-    return {"items": items, "prices": prices, "avg": _avg_3_5(prices), "error": None}
-
-def discover_binance_paytypes(asset="USDT", fiat="UAH", side="SELL", amount="20000", merchant=True, pages=3, rows=20):
-    """
-    Сканирует несколько страниц и возвращает уникальные payTypes: [{"id","name"},...]
-    """
+def discover_binance_paytypes(asset="USDT", fiat="UAH", side="SELL", amount="20000", merchant=True, pages=2, rows=20):
     seen = {}
     for p in range(1, pages+1):
         payload = {
@@ -118,13 +216,10 @@ def discover_binance_paytypes(asset="USDT", fiat="UAH", side="SELL", amount="200
             "page": p, "payTypes": [], "publisherType": None,
             "rows": int(rows), "tradeType": side, "transAmount": str(amount),
         }
-        try:
-            r = requests.post(BINANCE_URL, headers=BINANCE_HEADERS, json=payload, timeout=15)
-            if r.status_code != 200:
-                break
-            js = r.json()
-        except Exception:
+        r = requests.post(BINANCE_URL, headers=BINANCE_HEADERS, json=payload, timeout=15)
+        if r.status_code != 200:
             break
+        js = r.json()
         if js.get("code") != "000000":
             break
         data = js.get("data", []) or []
@@ -138,18 +233,14 @@ def discover_binance_paytypes(asset="USDT", fiat="UAH", side="SELL", amount="200
                 if ident:
                     seen[ident] = name
             for ident in ad.get("payTypes", []) or []:
-                ident = (ident or "").strip()
                 if ident and ident not in seen:
                     seen[ident] = ident
     items = [{"id": k, "name": v} for k, v in seen.items()]
     items.sort(key=lambda x: (x["name"].lower(), x["id"]))
     return items
 
-# ------------------ Bybit ------------------
+# ====================== Bybit ================================
 def fetch_bybit(token="USDT", fiat="UAH", side="SELL", payments=None, amount="20000", rows=10, verified=False):
-    """
-    Аналогично Binance: {items, prices, avg, error}
-    """
     side_map = {"SELL": "0", "BUY": "1"}
     payload = {
         "tokenId": token, "currencyId": fiat, "payment": payments or [],
@@ -158,142 +249,44 @@ def fetch_bybit(token="USDT", fiat="UAH", side="SELL", payments=None, amount="20
         "amount": str(amount), "authMaker": bool(verified),
         "canTrade": False, "shieldMerchant": False, "reputation": False, "country": ""
     }
-    try:
-        r = requests.post(BYBIT_URL, headers=BYBIT_HEADERS, json=payload, timeout=15)
-        r.raise_for_status()
-        js = r.json()
-    except Exception as e:
-        return {"items": [], "prices": [], "avg": None, "error": f"network/json: {e}"}
-
+    r = requests.post(BYBIT_URL, headers=BYBIT_HEADERS, json=payload, timeout=15)
+    r.raise_for_status()
+    js = r.json()
     result = js.get("result", {}) if isinstance(js, dict) else {}
-    data = (result.get("items", []) or [])[:5]
+    data = (result.get("items") or [])[:5]
 
     items, prices = [], []
     for ad in data:
         name  = ad.get("nickName") or "-"
-        price = _fmt_float(ad.get("price"))
+        price = _d(ad.get("price"))
         if price is None:
             continue
         items.append({
             "name": name,
-            "price": price,
+            "price": float(price),
             "min": ad.get("minAmount"),
             "max": ad.get("maxAmount"),
             "volume": ad.get("lastQuantity"),
         })
         prices.append(price)
-    return {"items": items, "prices": prices, "avg": _avg_3_5(prices), "error": None}
+    avg = _avg_3_5(prices)
+    return {"items": items, "prices": [float(x) for x in prices], "avg": (float(avg) if avg is not None else None)}
 
-# ------------------ Google Finance ------------------
-GF_HEADERS = {
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
-    "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
-}
-_num_re = re.compile(r"[-+]?\d{1,3}(?:[ \u00A0]?\d{3})*(?:[.,]\d+)?")
-
-def _num_to_float(s: str) -> float:
-    m = _num_re.search(s or "")
-    if not m:
-        raise ValueError(f"no number in '{s}'")
-    t = m.group(0).replace("\u00A0", " ").replace(" ", "")
-    if "," in t and "." in t:
-        t = t.replace(",", "")
-    else:
-        t = t.replace(",", ".")
-    return float(t)
-
-def _gf_price_direct(asset: str, fiat: str) -> tuple[float, str]:
-    A, F = asset.upper(), fiat.upper()
-    url  = f"https://www.google.com/finance/quote/{A}-{F}"
-    r = requests.get(url, headers=GF_HEADERS, timeout=12)
-    r.raise_for_status()
-    soup = BeautifulSoup(r.text, "html.parser")
-    blk = soup.select_one(f'div[jscontroller="NdbN0c"][jsname="AS5Pxb"][data-source="{A}"][data-target="{F}"]')
-
-    if blk and blk.has_attr("data-last-price"):
-        return float(blk["data-last-price"]), url
-
-    if blk:
-        node = blk.select_one("div.YMlKec.fxKbKc") or blk.select_one("div.YMlKec")
-        if node and node.text:
-            return _num_to_float(node.get_text(" ", strip=True)), url
-
-    m = re.findall(r'data-last-price="([^"]+)"', r.text)
-    if m:
-        return float(m[-1]), url
-
-    node = soup.select_one("div.YMlKec.fxKbKc") or soup.select_one("div.YMlKec")
-    if node and node.text:
-        return _num_to_float(node.get_text(" ", strip=True)), url
-
-    raise RuntimeError("GF: не удалось извлечь цену")
-
-def _gf_only_price(asset: str, fiat: str) -> float:
-    p, _ = _gf_price_direct(asset, fiat)
-    return p
-
-def fetch_gf(asset: str, fiat: str):
-    A, F = asset.upper(), fiat.upper()
-    direct_price, url = _gf_price_direct(A, F)
-
-    cross = None
-    try:
-        if A != "USD" and F != "USD":
-            a_usd = _gf_only_price(A, "USD")
-            usd_f = _gf_only_price("USD", F)
-            cross = a_usd * usd_f
-    except Exception:
-        cross = None
-
-    def rng(a, f):
-        if f == "UAH":
-            return {
-                "USDT": (5, 200), "USDC": (5, 200), "DAI": (5, 200), "TUSD": (5, 200), "USD": (5, 200),
-                "BTC": (1e5, 1e8), "ETH": (5e3, 5e7), "BNB": (1e3, 2e6), "SOL": (200, 1e6),
-            }.get(a, (1e-9, 1e12))
-        return (1e-9, 1e12)
-
-    lo, hi = rng(A, F)
-    chosen = direct_price
-    in_range = (lo <= chosen <= hi)
-
-    if cross is not None:
-        if not in_range:
-            chosen = cross
-        else:
-            rel = abs(chosen - cross) / max(cross, 1e-12)
-            if rel > 0.25:
-                chosen = cross
-
-    if A in {"USDT", "USDC", "DAI", "TUSD", "USD"} and F in {"UAH", "USD", "EUR"}:
-        if not (0.01 < chosen < 1000) and cross is not None and (0.01 < cross < 1000):
-            chosen = cross
-
-    return {"pair": f"{A}-{F}", "price": float(chosen), "url": url, "ts": int(time.time())}
-
-# ------------------ XE.com (Playwright) ------------------
+# ====================== XE (универсальный) =====================
 XE_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit(537.36) (KHTML, like Gecko) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/120.0.0.0 Safari/537.36"
 )
 NAV_TIMEOUT = 15000
 SEL_TIMEOUT = 6000
-RE_NUM = re.compile(r"[0-9]+(?:[ \u00A0]?[0-9]{3})*(?:[.,][0-9]+)?")
 
-def to_float(num_str: str) -> float:
-    s = (num_str or "").replace("\u00A0", " ").replace(" ", "")
-    if "," in s and "." in s:
-        s = s.replace(",", "")
-    else:
-        s = s.replace(",", ".")
-    return float(s)
+XE_STABLES = {"USDT", "USDC", "DAI", "TUSD", "EURC", "USDP"}
 
-def xe_extract_both(soup: BeautifulSoup, frm: str, to: str) -> Tuple[Optional[float], Optional[float]]:
-    frm_u, to_u = frm.upper(), to.upper()
+def xe_extract_both(soup: BeautifulSoup, frm: str, to: str) -> Tuple[Optional[Decimal], Optional[Decimal]]:
     conv_val = None
     chart_val = None
-
+    # conversion box
     for box in soup.select("div[data-testid='conversion']"):
         header_p = None
         for p in box.find_all("p"):
@@ -303,47 +296,26 @@ def xe_extract_both(soup: BeautifulSoup, frm: str, to: str) -> Tuple[Optional[fl
         if header_p is not None:
             value_p = header_p.find_next_sibling("p")
             if value_p is not None:
-                txt = value_p.get_text("", strip=True)
-                m = RE_NUM.search(txt)
-                if m:
-                    try:
-                        conv_val = to_float(m.group(0))
-                        break
-                    except Exception:
-                        pass
-
+                conv_val = best_decimal_from_text(value_p.get_text("", strip=True) or "")
+                break
+    # chart table
     for p in soup.select("section[data-testid='currency-conversion-chart-stats-table'] p"):
-        txt = p.get_text(" ", strip=True)
-        up  = txt.upper()
-        if up.startswith(f"1 {frm_u}") and "=" in up and to_u in up:
-            right = txt.split("=", 1)[1]
-            m = RE_NUM.search(right)
-            if m:
-                try:
-                    chart_val = to_float(m.group(0))
-                except Exception:
-                    chart_val = None
+        chart_val_candidate = best_decimal_from_text(p.get_text(" ", strip=True) or "")
+        if chart_val_candidate:
+            chart_val = chart_val_candidate
             break
-
     return conv_val, chart_val
 
-def xe_extract_meta(soup: BeautifulSoup) -> Optional[float]:
+def xe_extract_meta(soup: BeautifulSoup) -> Optional[Decimal]:
     meta = soup.find("meta", attrs={"property": "og:description"}) or soup.find("meta", attrs={"name": "description"})
     if not meta:
         return None
-    content = meta.get("content") or ""
-    nums = RE_NUM.findall(content)
-    if len(nums) >= 2:
-        try:
-            return to_float(nums[1])
-        except Exception:
-            return None
-    return None
+    return best_decimal_from_text(meta.get("content") or "")
 
-def fetch_xe_browser(frm: str, to: str, amount: float = 1.0) -> dict:
-    A, F = frm.upper(), to.upper()
-    url = f"https://www.xe.com/currencyconverter/convert/?Amount={amount}&From={A}&To={F}"
-
+def fetch_xe_via_browser(frm: str, to: str, amount: Decimal = Decimal(1)) -> Tuple[Optional[Decimal], str, Dict]:
+    url = f"https://www.xe.com/currencyconverter/convert/?Amount={amount}&From={frm}&To={to}"
+    if not PLAYWRIGHT_OK:
+        return None, url, {"note": "playwright_not_installed"}
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
         context = browser.new_context(
@@ -353,82 +325,108 @@ def fetch_xe_browser(frm: str, to: str, amount: float = 1.0) -> dict:
             extra_http_headers={"Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"},
         )
         page = context.new_page()
+        hydrated = False
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
-
-            waited_any = False
-            for sel in [
-                "div[data-testid='conversion'] p",
-                "section[data-testid='currency-conversion-chart-stats-table'] p",
-                "meta[property='og:description'], meta[name='description']",
-            ]:
-                try:
-                    page.wait_for_selector(sel, timeout=SEL_TIMEOUT)
-                    waited_any = True
-                    break
-                except PWTimeoutError:
-                    continue
-
+            try:
+                page.wait_for_selector(
+                    "div[data-testid='conversion'] p, section[data-testid='currency-conversion-chart-stats-table'] p, meta[property='og:description']",
+                    timeout=SEL_TIMEOUT
+                )
+                hydrated = True
+            except PWTimeoutError:
+                pass
             html = page.content()
             soup = BeautifulSoup(html, "html.parser")
-
-            conv_val, chart_val = xe_extract_both(soup, A, F)
-
+            conv_val, chart_val = xe_extract_both(soup, frm, to)
             chosen = None
             source = None
-
-            if conv_val is not None and conv_val > 0:
-                chosen = conv_val
-                source = "conversion"
-
-            if chart_val is not None and chart_val > 0:
-                if chosen is None:
-                    chosen = chart_val
-                    source = "chart"
+            if conv_val and conv_val > 0:
+                chosen = conv_val; source = "xe:conversion"
+            if chart_val and chart_val > 0:
+                if not chosen:
+                    chosen = chart_val; source = "xe:chart"
                 else:
-                    rel = abs(chart_val - conv_val) / max((chart_val + conv_val) / 2.0, 1e-9)
-                    if rel <= 0.03:
-                        chosen = (chart_val + conv_val) / 2.0
-                        source = "avg(chart,conv)"
-                    else:
-                        chosen = conv_val
-                        source = "conversion"
-
-            if chosen is None:
+                    rel = abs(chart_val - conv_val) / max((chart_val + conv_val) / 2, Decimal("1e-9"))
+                    if rel <= Decimal("0.03"):
+                        chosen = (chart_val + conv_val) / Decimal(2); source = "xe:avg(chart,conv)"
+                    # иначе оставляем conversion
+            if not chosen:
                 meta_val = xe_extract_meta(soup)
-                if meta_val is not None and meta_val > 0:
-                    chosen = meta_val
-                    source = "meta"
-
-            if chosen is None:
-                raise RuntimeError("не найден валидный курс (chart=0/None, conversion=None, meta=None)")
-
-            return {
-                "pair": f"{A}-{F}",
-                "price": float(chosen),
-                "url": url,
-                "ts": int(time.time()),
-                "source": source,
-                "hydrated": waited_any,
-                "raw": {"conversion": conv_val, "chart": chart_val}
-            }
+                if meta_val and meta_val > 0:
+                    chosen = meta_val; source = "xe:meta"
+            return chosen, url, {"source": source, "hydrated": hydrated}
         finally:
-            try:
-                page.close()
-            except Exception:
-                pass
-            try:
-                context.close()
-            except Exception:
-                pass
-            try:
-                browser.close()
-            except Exception:
-                pass
+            try: page.close()
+            except: pass
+            try: context.close()
+            except: pass
+            try: browser.close()
+            except: pass
 
-# ------------------ Bybit payments из txt ------------------
-BYBIT_PAYMENTS_MAP = {}
-def _load_bybit_payments():
+def fetch_xe_via_requests(frm: str, to: str, amount: Decimal = Decimal(1)) -> Tuple[Optional[Decimal], str, Dict]:
+    url = f"https://www.xe.com/currencyconverter/convert/?Amount={amount}&From={frm}&To={to}"
+    hdrs = {"User-Agent": XE_UA, "Accept-Language": "ru-RU,ru;q=0.9"}
+    r = requests.get(url, headers=hdrs, timeout=15)
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text, "html.parser")
+    conv_val, chart_val = xe_extract_both(soup, frm, to)
+    chosen = conv_val or chart_val or xe_extract_meta(soup)
+    return chosen, url, {"source": "xe:requests", "hydrated": False}
+
+def fetch_xe_direct(frm: str, to: str) -> Dict:
+    frm, to = frm.upper(), to.upper()
+    if frm == to:
+        return {"pair": f"{frm}-{to}", "price": 1.0, "url": f"https://www.xe.com/currencyconverter/convert/?Amount=1&From={frm}&To={to}", "ts": int(time.time()), "source": "xe:identity"}
+    amount = Decimal(1)
+    price, url, meta = fetch_xe_via_browser(frm, to, amount)
+    if not price:
+        price, url, meta = fetch_xe_via_requests(frm, to, amount)
+    if not price or price <= 0:
+        raise RuntimeError("XE direct: не удалось получить курс")
+    return {"pair": f"{frm}-{to}", "price": float(price), "url": url, "ts": int(time.time()), "source": meta.get("source") or "xe"}
+
+def fetch_xe_universal(frm: str, to: str) -> Dict:
+    A, F = frm.upper(), to.upper()
+    try:
+        return fetch_xe_direct(A, F)
+    except Exception:
+        pass
+    # гибрид
+    if A in XE_STABLES:
+        from_usd = Decimal(1)
+        src_left = "stable≈USD"
+    else:
+        from_usd = None; src_left = None
+        try:
+            d = fetch_xe_direct(A, "USD")
+            from_usd = _d(d["price"]); src_left = "xe(A→USD)"
+        except Exception:
+            try:
+                g = fetch_gf(A, "USD")
+                from_usd = _d(g["price"]); src_left = "gf(A→USD)"
+            except Exception:
+                pass
+    usd_to = None; src_right = None
+    try:
+        d2 = fetch_xe_direct("USD", F)
+        usd_to = _d(d2["price"]); src_right = "xe(USD→F)"
+    except Exception:
+        try:
+            d3 = fetch_xe_direct(F, "USD")
+            v = _d(d3["price"])
+            if v and v > 0:
+                usd_to = Decimal(1) / v; src_right = "xe(inv F→USD)"
+        except Exception:
+            pass
+    if not from_usd or from_usd <= 0 or not usd_to or usd_to <= 0:
+        raise RuntimeError("XE hybrid: не удалось собрать кросс-курс")
+    price = from_usd * usd_to
+    return {"pair": f"{A}-{F}", "price": float(price), "url": f"https://www.xe.com/currencyconverter/convert/?Amount=1&From={A}&To={F}", "ts": int(time.time()), "source": f"hybrid:{src_left}×{src_right}"}
+
+# ====================== Bybit payments (из TXT) =================
+BYBIT_PAYMENTS_MAP: Dict[str, List[Dict[str,str]]] = {}
+def _load_bybit_payments_from_txt():
     path_local = os.path.join(os.path.dirname(__file__), "bybit_payment_methods.txt")
     path_alt   = "/mnt/data/bybit_payment_methods.txt"
     path = path_local if os.path.exists(path_local) else (path_alt if os.path.exists(path_alt) else None)
@@ -448,33 +446,49 @@ def _load_bybit_payments():
             m = re.match(r"^\s*([0-9]+)\s+(.+?)\s*$", line)
             if m:
                 BYBIT_PAYMENTS_MAP[current].append({"id": m.group(1), "name": m.group(2)})
+_load_bybit_payments_from_txt()
 
-_load_bybit_payments()
+# ====================== XE codes ===============================
+XE_CODES: List[str] = []
+def _load_xe_codes():
+    global XE_CODES
+    fname_local = os.path.join(os.path.dirname(__file__), "xe_rates.json")
+    fname_alt   = "/mnt/data/xe_rates.json"
+    path = fname_local if os.path.exists(fname_local) else (fname_alt if os.path.exists(fname_alt) else None)
+    if path:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                js = json.load(f)
+                rates = js.get("rates", {})
+                if isinstance(rates, dict):
+                    XE_CODES = sorted({k.upper().strip() for k in rates.keys() if isinstance(k, str)})
+        except Exception:
+            XE_CODES = []
+    if not XE_CODES:
+        XE_CODES = sorted(list({
+            "USD","EUR","UAH","RUB","KZT","BYN","KGS","TJS","GEL","TRY","PLN","GBP","CZK","RON","MDL","HUF","AED","CNY","JPY","KRW","INR",
+            "XAU","XAG","XPT","XPD","XDR",
+            "BTC","ETH","BNB","SOL","ADA","XRP","LTC","DOGE","DOT","LINK",
+            "USDT","USDC","DAI","TUSD","EURC","USDP"
+        }))
+_load_xe_codes()
 
-# ------------------ XE symbols (из твоего JSON: список кодов) ------------------
-XE_SYMBOLS = sorted([
-    "ADA","AED","AFN","ALL","AMD","ANG","AOA","ARS","ATS","AUD","AWG","AZM","AZN","BAM","BBD","BCH",
-    "BDT","BEF","BGN","BHD","BIF","BMD","BND","BOB","BRL","BSD","BTC","BTN","BWP","BYN","BYR","BZD",
-    "CAD","CDF","CHF","CLF","CLP","CNH","CNY","COP","CRC","CUC","CUP","CVE","CYP","CZK","DEM","DJF",
-    "DKK","DOGE","DOP","DOT","DZD","EEK","EGP","ERN","ESP","ETB","ETH","EUR","EURC","FIM","FJD","FKP",
-    "FRF","GBP","GEL","GGP","GHC","GHS","GIP","GMD","GNF","GRD","GTQ","GYD","HKD","HNL","HRK","HTG",
-    "HUF","IDR","IEP","ILS","IMP","INR","IQD","IRR","ISK","ITL","JEP","JMD","JOD","JPY","KES","KGS",
-    "KHR","KMF","KPW","KRW","KWD","KYD","KZT","LAK","LBP","LINK","LKR","LRD","LSL","LTC","LTL","LUF",
-    "LUNA","LVL","LYD","MAD","MDL","MGA","MGF","MKD","MMK","MNT","MOP","MRO","MRU","MTL","MUR","MVR",
-    "MWK","MXN","MXV","MYR","MZM","MZN","NAD","NGN","NIO","NLG","NOK","NPR","NZD","OMR","PAB","PEN",
-    "PGK","PHP","PKR","PLN","PTE","PYG","QAR","ROL","RON","RSD","RUB","RWF","SAR","SBD","SCR","SDD",
-    "SDG","SEK","SGD","SHP","SIT","SKK","SLE","SLL","SOL","SOS","SPL","SRD","SRG","STD","STN","SVC",
-    "SYP","SZL","THB","TJS","TMM","TMT","TND","TOP","TRL","TRY","TTD","TVD","TWD","TZS","UAH","UGX",
-    "UNI","USD","USDC","USDP","UYU","UZS","VAL","VEB","VED","VEF","VES","VND","VUV","WST","XAF","XAG",
-    "XAU","XBT","XCD","XCG","XDR","XLM","XOF","XPD","XPF","XPT","XRP","YER","ZAR","ZMK","ZMW","ZWD",
-    "ZWG","ZWL"
-])
+# ====================== API ================================
+@app.route("/api/binance_rate")
+def api_binance_rate():
+    asset = request.args.get("asset", "USDT").upper()
+    fiat = request.args.get("fiat", "UAH").upper()
+    side = request.args.get("side", "SELL").upper()
+    pay_csv = (request.args.get("paytypes") or "").strip()
+    paytypes = [p for p in (pay_csv.split(",") if pay_csv else []) if p]
+    amount = request.args.get("amount", "20000")
+    merchant = request.args.get("merchant", "true").lower() == "true"
+    try:
+        d = fetch_binance(asset, fiat, side, paytypes, amount, rows=10, merchant=merchant)
+        return jsonify({"ok": True, **d})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
 
-@app.route("/api/xe/symbols")
-def api_xe_symbols():
-    return jsonify({"ok": True, "symbols": XE_SYMBOLS})
-
-# ------------------ API: справочники ------------------
 @app.route("/api/binance/paytypes")
 def api_binance_paytypes():
     asset    = (request.args.get("asset") or "USDT").upper()
@@ -488,14 +502,42 @@ def api_binance_paytypes():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e), "items": []}), 502
 
+@app.route("/api/bybit_rate")
+def api_bybit_rate():
+    token = request.args.get("asset", "USDT").upper()
+    fiat  = request.args.get("fiat", "UAH").upper()
+    side  = request.args.get("side", "SELL").upper()
+    amount= request.args.get("amount", "20000")
+    verified = request.args.get("verified", "false").lower() == "true"
+    pay_csv  = (request.args.get("payments") or "").strip()
+    payments = [p for p in (pay_csv.split(",") if pay_csv else []) if p]
+    try:
+        d = fetch_bybit(token, fiat, side, payments, amount, rows=10, verified=verified)
+        return jsonify({"ok": True, **d})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
+
 @app.route("/api/bybit/payments")
 def api_bybit_payments():
     fiat = (request.args.get("fiat") or "UAH").upper()
     items = BYBIT_PAYMENTS_MAP.get(fiat, [])
     items = sorted(items, key=lambda x: (x["name"].lower(), int(x["id"])))
-    return jsonify({"fiat": fiat, "count": len(items), "items": items})
+    return jsonify({"ok": True, "fiat": fiat, "items": items})
 
-# ------------------ Единый API по рынкам ------------------
+@app.route("/api/xe")
+def api_xe():
+    frm = request.args.get("from", "USD").upper()
+    to  = request.args.get("to",   "UAH").upper()
+    try:
+        data = fetch_xe_universal(frm, to)
+        return jsonify({"ok": True, "data": data})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
+
+@app.route("/api/xe/codes")
+def api_xe_codes():
+    return jsonify({"ok": True, "codes": XE_CODES})
+
 @app.route("/api/rates")
 def api_rates():
     asset  = request.args.get("asset", "USDT").upper()
@@ -511,21 +553,23 @@ def api_rates():
     payments_csv   = (request.args.get("payments_bybit") or "").strip()
     bybit_payments = [p for p in (payments_csv.split(",") if payments_csv else []) if p]
 
+    out = {"google": None, "binance": None, "bybit": None}
     errors = {}
 
-    gf = None
     try:
-        gf = fetch_gf(asset, fiat)
+        out["binance"] = fetch_binance(asset, fiat, side, paytypes_binance, amount, rows=10, merchant=merchant_binance)
+    except Exception as e:
+        errors["binance"] = str(e)
+
+    try:
+        out["bybit"] = fetch_bybit(asset, fiat, side, bybit_payments, amount, rows=10, verified=verified_bybit)
+    except Exception as e:
+        errors["bybit"] = str(e)
+
+    try:
+        out["google"] = fetch_gf(asset, fiat)
     except Exception as e:
         errors["google"] = str(e)
-
-    bn = fetch_binance(asset, fiat, side, paytypes_binance, amount, rows=10, merchant=merchant_binance)
-    if bn.get("error"):
-        errors["binance"] = bn["error"]
-
-    by = fetch_bybit(asset, fiat, side, bybit_payments, amount, rows=10, verified=verified_bybit)
-    if by.get("error"):
-        errors["bybit"] = by["error"]
 
     return jsonify({
         "ok": True,
@@ -534,77 +578,23 @@ def api_rates():
             "merchant_binance": merchant_binance, "paytypes_binance": paytypes_binance,
             "verified_bybit": verified_bybit, "payments_bybit": bybit_payments
         },
-        "google": gf,
-        "binance": {k: v for k, v in bn.items() if k in ("items","prices","avg")},
-        "bybit":   {k: v for k, v in by.items() if k in ("items","prices","avg")},
+        "google": out["google"],
+        "binance": out["binance"],
+        "bybit": out["bybit"],
         "errors": errors or None,
         "timestamp": int(time.time())
     })
 
-# ------------------ API XE: отдельные эндпоинты ------------------
-@app.route("/api/xe")
-def api_xe():
-    frm = request.args.get("from", "USD").upper()
-    to  = request.args.get("to",   "UAH").upper()
-    try:
-        amount = float(request.args.get("amount", "1") or "1")
-    except Exception:
-        amount = 1.0
-
-    try:
-        data = fetch_xe_browser(frm, to, amount)
-        return jsonify({"ok": True, "data": data})
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"XE browser error: {e}"}), 502
-
-@app.route("/api/xe/debug")
-def api_xe_debug():
-    frm = request.args.get("from", "USD").upper()
-    to  = request.args.get("to",   "UAH").upper()
-    amount = request.args.get("amount", "1")
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
-            context = browser.new_context(
-                locale="ru-RU",
-                user_agent=XE_UA,
-                viewport={"width": 1280, "height": 900},
-                extra_http_headers={"Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"},
-            )
-            page = context.new_page()
-            page.goto(f"https://www.xe.com/currencyconverter/convert/?Amount={amount}&From={frm}&To={to}",
-                      wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
-            try:
-                page.wait_for_selector("div[data-testid='conversion'] p, section[data-testid='currency-conversion-chart-stats-table'] p",
-                                       timeout=SEL_TIMEOUT)
-            except Exception:
-                pass
-            html = page.content()
-            soup = BeautifulSoup(html, "html.parser")
-            conv_val, chart_val = xe_extract_both(soup, frm, to)
-            meta_val = xe_extract_meta(soup)
-            return jsonify({"ok": True, "raw": {"conversion": conv_val, "chart": chart_val, "meta": meta_val}})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 502
-
-# ------------------ Страница ------------------
+# ====================== Страница (две сетки) ====================
 PAGE = """
 <!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8" />
-<title>P2P Dashboard: Binance • Bybit • Google Finance • XE</title>
+<title>P2P Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  :root {
-    color-scheme: dark light;
-    --accent: #22c55e;
-    --card: #12151c;
-    --border: #242a36;
-    --bg: #0b0d12;
-    --fg: #e6e9ef;
-    --muted: #9aa4b2;
-  }
+  :root { color-scheme: dark light; --accent:#22c55e; --card:#12151c; --border:#242a36; --bg:#0b0d12; --fg:#e6e9ef; --muted:#9aa4b2; }
   body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; padding:24px; background:var(--bg); color:var(--fg); }
   .wrap { max-width: 1200px; margin: 0 auto; }
   .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; position:relative; }
@@ -618,7 +608,7 @@ PAGE = """
   input, select, button { font: inherit; }
   input, select { width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:#0f1218; color:var(--fg); }
   button { padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:#1a2130; color:var(--fg); cursor:pointer; }
-  button:hover { background:#20283a; border-color: #2d3546; }
+  button:hover { background:#20283a; border-color:#2d3546; }
   .btn-small { padding:6px 10px; font-size:12px; }
   .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top: 16px; }
   .rate { font-size: 34px; font-weight:700; margin: 6px 0 8px; }
@@ -630,9 +620,7 @@ PAGE = """
   @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
   .footer{ position:fixed; right:20px; bottom:15px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); opacity:.85; }
   .footer img{ width:28px; height:28px; object-fit:contain; }
-  .chip { background:#0e1622; border:1px solid #223047; color:var(--muted); padding:3px 8px; border-radius:999px; font-size:12px; }
 
-  /* Dropdown (multi и single используют один стиль) */
   .mdrop { position: relative; display:inline-block; width:100%; }
   .mdrop-btn { width:100%; text-align:left; display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .mdrop-btn .count { color:var(--muted); font-size:12px; }
@@ -642,53 +630,22 @@ PAGE = """
     display:none; overflow:hidden; flex-direction:column;
   }
   .mdrop.open .mdrop-menu { display:flex; }
-
   .mdrop-head { position: sticky; top: 0; background:#0f1218; border-bottom:1px solid var(--border); padding:8px; }
-  .mdrop-head input{
-    width:100%; padding:8px 10px; border-radius:10px; border:1px solid var(--border); background:#0f1218; color:var(--fg);
-    outline:none;
-  }
-  .mdrop-head input:focus{ border-color: var(--accent); box-shadow: 0 0 0 2px rgba(34,197,94,.15); }
-
   .mdrop-body { padding:10px; overflow:auto; }
   .mdrop-grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px 10px; align-items:stretch; }
   .mdrop-pill {
     min-height:32px; padding:4px 8px; border-radius:10px; border:1px solid var(--border); background:#0f1218;
-    display:flex; align-items:center; justify-content:flex-start; text-align:left; cursor:pointer; user-select:none;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px;
+    display:flex; align-items:center; cursor:pointer; user-select:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px;
   }
   .mdrop-pill:hover { background:#121a24; border-color:#2c3a4f; }
   .mdrop-pill.active { background:#0d1f16; border-color: rgba(34,197,94,.65); box-shadow: inset 0 0 0 1px rgba(34,197,94,.35); }
-
-  .mdrop-foot {
-    position: sticky; bottom: 0; background:#0f1218; border-top:1px solid var(--border); padding:8px;
-    display:grid; grid-template-columns: 1fr 1fr; gap:8px;
-  }
-  .mdrop-foot button { width:100%; }
-  .mdrop-foot button:first-child { border-color: #1e2b22; background:#112318; }
-  .mdrop-foot button:first-child:hover { border-color:#244a33; background:#14301f; }
-  .mdrop-foot button:last-child { border-color:#2a1f21; background:#231317; }
-  .mdrop-foot button:last-child:hover { border-color:#3a2a2d; background:#2a171c; }
-
-  /* Overlay loader */
-  #loading{
-    position:fixed; inset:0; background:rgba(0,0,0,.4);
-    display:none; align-items:center; justify-content:center; z-index:999;
-  }
-  .loader{
-    width:48px; height:48px; border:5px solid rgba(255,255,255,.3);
-    border-top-color:#fff; border-radius:50%; animation:spin 1s linear infinite;
-  }
-  @keyframes spin{ to{ transform:rotate(360deg); } }
-
 </style>
 </head>
 <body>
-<div id="loading"><div class="loader"></div></div>
 <div class="wrap">
   <h1>P2P Dashboard <span class="muted" id="ts"></span></h1>
 
-  <!-- Глобальные фильтры + XE From/To -->
+  <!-- Глобальные фильтры -->
   <div class="card">
     <form id="filters" class="row" onsubmit="apply(event)">
       <div>
@@ -716,41 +673,6 @@ PAGE = """
         <label>Сумма (фиат)</label>
         <input id="amount" type="number" step="1" value="20000" />
       </div>
-
-      <!-- XE From/To (single-select + поиск) -->
-      <div>
-        <label>XE From</label>
-        <div class="mdrop" id="xe_from" onclick="event.stopPropagation()">
-          <button type="button" class="mdrop-btn" onclick="sdToggle('xe_from'); event.stopPropagation();">
-            <span id="xe_from_label">USD</span>
-          </button>
-          <div class="mdrop-menu">
-            <div class="mdrop-head">
-              <input id="xe_from_search" placeholder="Поиск валюты..." oninput="onSdSearch('xe_from')" />
-            </div>
-            <div class="mdrop-body">
-              <div class="mdrop-grid" id="xe_from_grid"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div>
-        <label>XE To</label>
-        <div class="mdrop" id="xe_to" onclick="event.stopPropagation()">
-          <button type="button" class="mdrop-btn" onclick="sdToggle('xe_to'); event.stopPropagation();">
-            <span id="xe_to_label">UAH</span>
-          </button>
-          <div class="mdrop-menu">
-            <div class="mdrop-head">
-              <input id="xe_to_search" placeholder="Поиск валюты..." oninput="onSdSearch('xe_to')" />
-            </div>
-            <div class="mdrop-body">
-              <div class="mdrop-grid" id="xe_to_grid"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div style="align-self:end">
         <button type="submit">Применить</button>
         <button type="button" onclick="refreshNow()">Обновить</button>
@@ -758,40 +680,8 @@ PAGE = """
     </form>
   </div>
 
-  <!-- Ряд XE + Google Finance -->
-  <div class="grid" style="margin-top:16px;">
-    <div class="card" id="xe_card">
-      <h2 style="margin:0 0 6px;">XE.com <span id="xe_pair" class="chip">—</span></h2>
-      <div id="xe_error" class="error" style="display:none"></div>
-      <div class="rate" id="xe_price">—</div>
-      <div class="muted">
-        <span id="xe_ts">—</span>
-        · <span id="xe_src" class="chip">—</span>
-        · <a id="xe_link" href="#" target="_blank" rel="noopener" style="color:var(--muted);">Открыть в XE</a>
-      </div>
-      <div style="margin-top:8px;">
-        <span class="chip">Спред к Binance: <span id="xe_spread_bin">—</span></span>
-        &nbsp; <span class="chip">Спред к Bybit: <span id="xe_spread_byb">—</span></span>
-      </div>
-    </div>
-
-    <div class="card" id="gf_card">
-      <h2 style="margin:0 0 6px;">Google Finance <span id="gf_pair" class="chip"></span></h2>
-      <div id="gf_error" class="error" style="display:none"></div>
-      <div class="rate" id="gf_price">—</div>
-      <div class="muted">
-        <span id="gf_ts">—</span>
-        · <a id="gf_link" href="#" target="_blank" rel="noopener" style="color:var(--muted);">Открыть котировку</a>
-      </div>
-      <div style="margin-top:8px;">
-        <span class="chip">Спред к Binance: <span id="gf_spread_bin">—</span></span>
-        &nbsp; <span class="chip">Спред к Bybit: <span id="gf_spread_byb">—</span></span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Ряд Binance + Bybit -->
-  <div class="grid" style="margin-top:16px;">
+  <!-- Ряд 1: Binance • Bybit -->
+  <div class="grid">
     <!-- Binance -->
     <div class="card" id="binance_card">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
@@ -803,32 +693,30 @@ PAGE = """
       <div class="rate" id="binance_avg">—</div>
       <div class="muted" id="binance_prices">—</div>
 
-      <div class="filters" id="binance_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
-        <div class="row">
-          <div>
-            <label>Верифицированные продавцы</label>
-            <select id="merchant_binance">
-              <option value="true">Да</option>
-              <option value="false">Нет</option>
-            </select>
-          </div>
-          <div>
-            <label>Платёжные методы</label>
-            <div class="mdrop" id="dd_binance" onclick="event.stopPropagation()">
-              <button type="button" class="mdrop-btn" onclick="mdropToggle('dd_binance'); event.stopPropagation();">
-                <span>Выбрать методы</span> <span class="count" id="dd_binance_count">0</span>
-              </button>
-              <div class="mdrop-menu">
-                <div class="mdrop-head">
-                  <input id="dd_binance_search" placeholder="Поиск метода..." oninput="onSearchInput('dd_binance')" />
-                </div>
-                <div class="mdrop-body">
-                  <div class="mdrop-grid" id="dd_binance_grid"></div>
-                </div>
-                <div class="mdrop-foot">
-                  <button type="button" class="js-confirm">Подтвердить</button>
-                  <button type="button" class="js-reset">Сбросить</button>
-                </div>
+      <div class="row" id="binance_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
+        <div>
+          <label>Верифицированные продавцы</label>
+          <select id="merchant_binance">
+            <option value="true">Да</option>
+            <option value="false">Нет</option>
+          </select>
+        </div>
+        <div>
+          <label>Платёжный метод</label>
+          <div class="mdrop" id="dd_binance" onclick="event.stopPropagation()">
+            <button type="button" class="mdrop-btn" onclick="mdropToggle('dd_binance'); event.stopPropagation();">
+              <span>Выбрать методы</span> <span class="count" id="dd_binance_count">0</span>
+            </button>
+            <div class="mdrop-menu">
+              <div class="mdrop-head">
+                <input id="dd_binance_search" placeholder="Поиск метода..." oninput="onSearchInput('dd_binance')" />
+              </div>
+              <div class="mdrop-body">
+                <div class="mdrop-grid" id="dd_binance_grid"></div>
+              </div>
+              <div class="mdrop-foot">
+                <button type="button" class="js-confirm">Подтвердить</button>
+                <button type="button" class="js-reset">Сбросить</button>
               </div>
             </div>
           </div>
@@ -852,32 +740,30 @@ PAGE = """
       <div class="rate" id="bybit_avg">—</div>
       <div class="muted" id="bybit_prices">—</div>
 
-      <div class="filters" id="bybit_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
-        <div class="row">
-          <div>
-            <label>Верифицированные продавцы</label>
-            <select id="verified_bybit">
-              <option value="true">Да</option>
-              <option value="false" selected>Нет</option>
-            </select>
-          </div>
-          <div>
-            <label>Платёжные методы</label>
-            <div class="mdrop" id="dd_bybit" onclick="event.stopPropagation()">
-              <button type="button" class="mdrop-btn" onclick="mdropToggle('dd_bybit'); event.stopPropagation();">
-                <span>Выбрать методы</span> <span class="count" id="dd_bybit_count">0</span>
-              </button>
-              <div class="mdrop-menu">
-                <div class="mdrop-head">
-                  <input id="dd_bybit_search" placeholder="Поиск метода..." oninput="onSearchInput('dd_bybit')" />
-                </div>
-                <div class="mdrop-body">
-                  <div class="mdrop-grid" id="dd_bybit_grid"></div>
-                </div>
-                <div class="mdrop-foot">
-                  <button type="button" class="js-confirm">Подтвердить</button>
-                  <button type="button" class="js-reset">Сбросить</button>
-                </div>
+      <div class="row" id="bybit_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
+        <div>
+          <label>Верифицированные продавцы</label>
+          <select id="verified_bybit">
+            <option value="true">Да</option>
+            <option value="false" selected>Нет</option>
+          </select>
+        </div>
+        <div>
+          <label>Платёжные методы</label>
+          <div class="mdrop" id="dd_bybit" onclick="event.stopPropagation()">
+            <button type="button" class="mdrop-btn" onclick="mdropToggle('dd_bybit'); event.stopPropagation();">
+              <span>Выбрать методы</span> <span class="count" id="dd_bybit_count">0</span>
+            </button>
+            <div class="mdrop-menu">
+              <div class="mdrop-head">
+                <input id="dd_bybit_search" placeholder="Поиск метода..." oninput="onSearchInput('dd_bybit')" />
+              </div>
+              <div class="mdrop-body">
+                <div class="mdrop-grid" id="dd_bybit_grid"></div>
+              </div>
+              <div class="mdrop-foot">
+                <button type="button" class="js-confirm">Подтвердить</button>
+                <button type="button" class="js-reset">Сбросить</button>
               </div>
             </div>
           </div>
@@ -890,65 +776,82 @@ PAGE = """
       </table>
     </div>
   </div>
+
+  <!-- Ряд 2: XE • Google Finance -->
+  <div class="grid">
+    <!-- XE -->
+    <div class="card" id="xe_card">
+      <h2 style="margin:0 0 8px;">XE.com <span id="xe_pair" class="muted"></span></h2>
+      <div class="row">
+        <div>
+          <label>XE From</label>
+          <input id="xe_from" list="xe_codes" placeholder="например, USD" />
+        </div>
+        <div>
+          <label>XE To</label>
+          <input id="xe_to" list="xe_codes" placeholder="например, UAH" />
+        </div>
+        <div style="align-self:end">
+          <button class="btn-small" type="button" onclick="applyXE()">Применить XE</button>
+          <button class="btn-small" type="button" onclick="refreshXENow()">Обновить XE</button>
+        </div>
+      </div>
+      <datalist id="xe_codes"></datalist>
+
+      <div id="xe_error" class="error" style="display:none"></div>
+      <div class="rate" id="xe_price">—</div>
+      <div class="muted">
+        <span id="xe_ts">—</span>
+        &nbsp;·&nbsp;<span id="xe_src" class="muted">—</span>
+        &nbsp;·&nbsp;<a id="xe_link" href="#" target="_blank" rel="noopener" style="color:var(--muted)">Открыть XE</a>
+      </div>
+      <div style="margin-top:8px;">
+        <span class="muted">Спред к Binance: <span id="xe_spread_bin">—</span></span>
+        &nbsp;&nbsp;<span class="muted">Спред к Bybit: <span id="xe_spread_byb">—</span></span>
+      </div>
+    </div>
+
+    <!-- Google Finance -->
+    <div class="card" id="gf_card">
+      <h2 style="margin:0 0 8px;">Google Finance <span id="gf_pair" class="muted"></span></h2>
+      <div id="gf_error" class="error" style="display:none"></div>
+      <div class="rate" id="gf_price">—</div>
+      <div class="muted">
+        <span id="gf_ts">—</span>
+        &nbsp;·&nbsp;<a id="gf_link" href="#" target="_blank" rel="noopener" style="color:var(--muted)">Открыть котировку</a>
+      </div>
+      <div style="margin-top:8px;">
+        <span class="muted">Спред к Binance: <span id="gf_spread_bin">—</span></span>
+        &nbsp;&nbsp;<span class="muted">Спред к Bybit: <span id="gf_spread_byb">—</span></span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-  // Таймеры
-  let timer = null;
-  const REFRESH_MS = 30000;
+  let timer = null; const REFRESH_MS = 30000;
+  let xeTimer = null; const XE_REFRESH_MS = 15000;
 
-  let xeTimer = null;
-  const XE_REFRESH_MS = 15000;
-
-  // Кэш последних средних для спредов
   let lastBinanceAvg = null;
   let lastBybitAvg   = null;
+  window.__lastXePrice = null;
 
-  // Multi-select
   let selectedBinance = new Set();
   let selectedBybit   = new Set();
   const tempSelected  = { dd_binance: new Set(), dd_bybit: new Set() };
   const searchState   = { dd_binance: "", dd_bybit: "" };
-  let binanceItems = [];
-  let bybitItems   = [];
+  let binanceItems = []; let bybitItems = [];
 
-  // XE single-select
-  let XE_SYMBOLS = [];
-  let xeFrom = 'USD';
-  let xeTo   = 'UAH';
-  const sdSearch = { xe_from: '', xe_to: '' };
-
+  function fmtSmart(n){
+    const v = Number(n);
+    if (!isFinite(v)) return '—';
+    const opts = v >= 1_000_000 ? {minimumFractionDigits:0, maximumFractionDigits:2}
+                                : {minimumFractionDigits:2, maximumFractionDigits:6};
+    return v.toLocaleString('ru-RU', opts);
+  }
   function fmt(n){ return Number(n).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:6}); }
   function fmtShort(n){ return Number(n).toLocaleString('ru-RU', {maximumFractionDigits:6}); }
-  // Loader overlay
-  let activeLoads = 0;
-  function showLoading(){
-    if (++activeLoads === 1){
-      const el = document.getElementById('loading');
-      if (el) el.style.display = 'flex';
-    }
-  }
-  function hideLoading(){
-    if (activeLoads > 0 && --activeLoads === 0){
-      const el = document.getElementById('loading');
-      if (el) el.style.display = 'none';
-    }
-  }
-  // ------- Параметры / загрузка -------
-  function paramsFromUI(){
-    return {
-      asset:   document.getElementById('asset').value,
-      fiat:    document.getElementById('fiat').value,
-      side:    document.getElementById('side').value,
-      amount:  document.getElementById('amount').value,
-      merchant_binance: document.getElementById('merchant_binance')?.value ?? 'true',
-      paytypes_binance: [...selectedBinance].join(','),
-      verified_bybit: document.getElementById('verified_bybit')?.value ?? 'false',
-      payments_bybit:  [...selectedBybit].join(',')
-    };
-  }
 
-  // ------- Отрисовка/ошибки -------
   function toggleFilters(id, btn){
     const el = document.getElementById(id);
     const hidden = window.getComputedStyle(el).display === 'none';
@@ -962,7 +865,6 @@ PAGE = """
     }
   }
 
-  // ------- Multi-dropdown -------
   function mdropToggle(ddId){
     const dd = document.getElementById(ddId);
     if (dd.classList.contains('open')){
@@ -971,8 +873,7 @@ PAGE = """
     }
     closeAllDropdowns();
     dd.classList.add('open');
-    if (ddId==='dd_binance') tempSelected[ddId] = new Set([...selectedBinance]);
-    if (ddId==='dd_bybit')   tempSelected[ddId] = new Set([...selectedBybit]);
+    tempSelected[ddId] = new Set([...(ddId==='dd_binance'?selectedBinance:selectedBybit)]);
     renderDropdownOptions(ddId);
     const input = document.getElementById(ddId + '_search');
     if (input) { input.value = searchState[ddId] || ""; input.focus(); }
@@ -989,16 +890,9 @@ PAGE = """
     document.querySelectorAll('.mdrop.open').forEach(dd => {
       const id = dd.id;
       dd.classList.remove('open');
-      if (id.startsWith('dd_')) { // это мульти
-        searchState[id] = "";
-        const input = document.getElementById(id + '_search');
-        if (input) input.value = "";
-      }
-      if (id.startsWith('xe_')) { // это single
-        sdSearch[id] = "";
-        const input = document.getElementById(id + '_search');
-        if (input) input.value = "";
-      }
+      searchState[id] = "";
+      const input = document.getElementById(id + '_search');
+      if (input) input.value = "";
     });
   }
   document.addEventListener('pointerdown', (e) => {
@@ -1007,9 +901,7 @@ PAGE = """
     if (openDd.contains(e.target)) return;
     closeAllDropdowns();
   }, true);
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeAllDropdowns();
-  });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllDropdowns(); });
 
   function onSearchInput(ddId){
     const input = document.getElementById(ddId + '_search');
@@ -1048,10 +940,36 @@ PAGE = """
     });
     const cntSpan = document.getElementById(isBin ? 'dd_binance_count' : 'dd_bybit_count');
     cntSpan.textContent = String(temp.size);
+    wireDropdown(ddId);
   }
   function updateCounters(){
     document.getElementById('dd_binance_count').textContent = String(selectedBinance.size);
     document.getElementById('dd_bybit_count').textContent   = String(selectedBybit.size);
+  }
+  function wireDropdown(ddId){
+    const root = document.getElementById(ddId);
+    if (!root) return;
+    const menu = root.querySelector('.mdrop-menu');
+    if (!menu || menu.__wired) return;
+    menu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (e.target.closest('.js-confirm')){
+        if (ddId==='dd_binance') selectedBinance = new Set([...tempSelected[ddId]]);
+        if (ddId==='dd_bybit')   selectedBybit   = new Set([...tempSelected[ddId]]);
+        updateCounters();
+        refreshNow();
+        closeAllDropdowns();
+        return;
+      }
+      if (e.target.closest('.js-reset')){
+        tempSelected[ddId] = new Set();
+        renderDropdownOptions(ddId);
+        const cntSpan = document.getElementById(ddId === 'dd_binance' ? 'dd_binance_count' : 'dd_bybit_count');
+        if (cntSpan) cntSpan.textContent = '0';
+        return;
+      }
+    });
+    menu.__wired = true;
   }
 
   async function loadBinancePaytypes(){
@@ -1069,9 +987,7 @@ PAGE = """
       updateCounters();
       return binanceItems;
     }catch(e){
-      binanceItems = [];
-      selectedBinance.clear();
-      updateCounters();
+      binanceItems = []; selectedBinance.clear(); updateCounters();
       return [];
     }
   }
@@ -1085,308 +1001,187 @@ PAGE = """
       updateCounters();
       return bybitItems;
     }catch(e){
-      bybitItems = [];
-      selectedBybit.clear();
-      updateCounters();
+      bybitItems = []; selectedBybit.clear(); updateCounters();
       return [];
     }
   }
 
-  // ------- XE single-select ------
-  async function loadXeSymbols(){
-    try{
-      const r = await fetch('/api/xe/symbols');
-      const js = await r.json();
-      XE_SYMBOLS = (js.symbols || []).sort();
-      renderSdOptions('xe_from');
-      renderSdOptions('xe_to');
-      setXeLabels();
-    }catch(e){
-      XE_SYMBOLS = ['USD','EUR','UAH'];
-      renderSdOptions('xe_from');
-      renderSdOptions('xe_to');
-      setXeLabels();
-    }
-  }
-  function setXeLabels(){
-    document.getElementById('xe_from_label').textContent = xeFrom;
-    document.getElementById('xe_to_label').textContent   = xeTo;
-  }
-  function sdToggle(id){
-    const el = document.getElementById(id);
-    const opened = el.classList.contains('open');
-    closeAllDropdowns();
-    if (!opened){
-      el.classList.add('open');
-      renderSdOptions(id);
-      const input = document.getElementById(id + '_search');
-      if (input){ input.value = sdSearch[id] || ''; input.focus(); }
-    }
-  }
-  function onSdSearch(id){
-    const input = document.getElementById(id + '_search');
-    sdSearch[id] = (input?.value || '').trim().toLowerCase();
-    renderSdOptions(id);
-  }
-  function renderSdOptions(id){
-    const gridId = id + '_grid';
-    const grid = document.getElementById(gridId);
-    if (!grid) return;
-    const q = (sdSearch[id] || '').toLowerCase();
-    const list = XE_SYMBOLS.filter(s => s.toLowerCase().includes(q));
-    grid.innerHTML = '';
-    list.forEach(sym => {
-      const btn = document.createElement('div');
-      btn.className = 'mdrop-pill';
-      btn.textContent = sym;
-      btn.title = sym;
-      btn.addEventListener('click', () => {
-        if (id === 'xe_from') xeFrom = sym;
-        if (id === 'xe_to')   xeTo   = sym;
-        setXeLabels();
-        closeAllDropdowns();
-        refreshXENow();
-      });
-      grid.appendChild(btn);
-    });
+  function paramsFromUI(){
+    return {
+      asset:   document.getElementById('asset').value,
+      fiat:    document.getElementById('fiat').value,
+      side:    document.getElementById('side').value,
+      amount:  document.getElementById('amount').value,
+      merchant_binance: document.getElementById('merchant_binance')?.value ?? 'true',
+      paytypes_binance: [...selectedBinance].join(','),
+      verified_bybit: document.getElementById('verified_bybit')?.value ?? 'false',
+      payments_bybit:  [...selectedBybit].join(',')
+    };
   }
 
-  // ------- Загрузка данных -------
   async function load(){
-    showLoading();
-    try{
-      const p = paramsFromUI();
-      const url = '/api/rates?' + new URLSearchParams(p).toString();
-      const res = await fetch(url);
-      let data = null;
-      try { data = await res.json(); } catch(e){ data = {ok:false, errors:{fetch:'Bad JSON'}} }
+    const p = paramsFromUI();
+    const url = '/api/rates?' + new URLSearchParams(p).toString();
+    const res = await fetch(url);
+    let data = null;
+    try { data = await res.json(); } catch(e){ data = {ok:false, errors:{fetch:'Bad JSON'}} }
 
-      document.getElementById('ts').textContent = ' • обновлено: ' + new Date().toLocaleTimeString('ru-RU');
+    document.getElementById('ts').textContent = '• обновлено: ' + new Date().toLocaleTimeString('ru-RU');
 
-      // Google Finance
-      document.getElementById('gf_pair').textContent = `${p.asset}-${p.fiat}`;
-      const gErr = document.getElementById('gf_error');
-      if (data.errors && data.errors.google){
-        gErr.style.display = ''; gErr.textContent = 'GF ошибка: ' + data.errors.google;
-        document.getElementById('gf_price').textContent = '—';
-        document.getElementById('gf_ts').textContent = '—';
-        document.getElementById('gf_link').href = '#';
-        document.getElementById('gf_spread_bin').textContent = '—';
-        document.getElementById('gf_spread_byb').textContent = '—';
-      } else if (data.google){
-        gErr.style.display = 'none';
-        const g = data.google;
-        document.getElementById('gf_price').textContent = fmtShort(g.price) + ' ' + p.fiat;
-        document.getElementById('gf_ts').textContent = 'TS: ' + new Date(g.ts*1000).toLocaleTimeString('ru-RU');
-        document.getElementById('gf_link').href = g.url || '#';
-        const s1 = ((data.binance?.avg ?? null) === null) ? null : ((data.binance.avg - g.price) / g.price * 100);
-        const s2 = ((data.bybit?.avg ?? null) === null) ? null : ((data.bybit.avg - g.price) / g.price * 100);
-        document.getElementById('gf_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
-        document.getElementById('gf_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
-      }
+    const bErr = document.getElementById('binance_error');
+    const bOk  = document.getElementById('binance_status');
+    if (data.errors && data.errors.binance){
+      bErr.style.display = ''; bErr.textContent = 'Ошибка: ' + data.errors.binance;
+      bOk.style.display = 'none';
+      document.getElementById('binance_avg').textContent = '—';
+      document.getElementById('binance_prices').textContent = '—';
+      document.getElementById('binance_tbody').innerHTML = '';
+      lastBinanceAvg = null;
+    } else if (data.binance){
+      bErr.style.display = 'none'; bOk.style.display = '';
+      const d = data.binance;
+      document.getElementById('binance_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
+      document.getElementById('binance_prices').textContent = d.prices && d.prices.length ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
+      const tb = document.getElementById('binance_tbody'); tb.innerHTML = '';
+      (d.items||[]).forEach((it, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
+        tb.appendChild(tr);
+      });
+      lastBinanceAvg = d.avg ?? null;
+    }
 
-      // Binance
-      const bErr = document.getElementById('binance_error');
-      const bOk  = document.getElementById('binance_status');
-      if (data.errors && data.errors.binance){
-        bErr.style.display = ''; bErr.textContent = 'Ошибка: ' + data.errors.binance;
-        bOk.style.display = 'none';
-        document.getElementById('binance_avg').textContent = '—';
-        document.getElementById('binance_prices').textContent = '—';
-        document.getElementById('binance_tbody').innerHTML = '';
-        lastBinanceAvg = null;
-      } else if (data.binance){
-        bErr.style.display = 'none'; bOk.style.display = '';
-        const d = data.binance;
-        document.getElementById('binance_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
-        document.getElementById('binance_prices').textContent = d.prices && d.prices.length >= 3 ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
-        const tb = document.getElementById('binance_tbody'); tb.innerHTML = '';
-        (d.items||[]).forEach((it, i) => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
-          tb.appendChild(tr);
-        });
-        lastBinanceAvg = d.avg ?? null;
-      }
+    const yErr = document.getElementById('bybit_error');
+    const yOk  = document.getElementById('bybit_status');
+    if (data.errors && data.errors.bybit){
+      yErr.style.display = ''; yErr.textContent = 'Ошибка: ' + data.errors.bybit;
+      yOk.style.display = 'none';
+      document.getElementById('bybit_avg').textContent = '—';
+      document.getElementById('bybit_prices').textContent = '—';
+      document.getElementById('bybit_tbody').innerHTML = '';
+      lastBybitAvg = null;
+    } else if (data.bybit){
+      yErr.style.display = 'none'; yOk.style.display = '';
+      const d = data.bybit;
+      document.getElementById('bybit_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
+      document.getElementById('bybit_prices').textContent = d.prices && d.prices.length ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
+      const tb = document.getElementById('bybit_tbody'); tb.innerHTML = '';
+      (d.items||[]).forEach((it, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
+        tb.appendChild(tr);
+      });
+      lastBybitAvg = d.avg ?? null;
+    }
 
-      // Bybit
-      const yErr = document.getElementById('bybit_error');
-      const yOk  = document.getElementById('bybit_status');
-      if (data.errors && data.errors.bybit){
-        yErr.style.display = ''; yErr.textContent = 'Ошибка: ' + data.errors.bybit;
-        yOk.style.display = 'none';
-        document.getElementById('bybit_avg').textContent = '—';
-        document.getElementById('bybit_prices').textContent = '—';
-        document.getElementById('bybit_tbody').innerHTML = '';
-        lastBybitAvg = null;
-      } else if (data.bybit){
-        yErr.style.display = 'none'; yOk.style.display = '';
-        const d = data.bybit;
-        document.getElementById('bybit_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
-        document.getElementById('bybit_prices').textContent = d.prices && d.prices.length >= 3 ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
-        const tb = document.getElementById('bybit_tbody'); tb.innerHTML = '';
-        (d.items||[]).forEach((it, i) => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
-          tb.appendChild(tr);
-        });
-        lastBybitAvg = d.avg ?? null;
-      }
+    const gErr = document.getElementById('gf_error');
+    document.getElementById('gf_pair').textContent = `${p.asset}-${p.fiat}`;
+    if (data.errors && data.errors.google){
+      gErr.style.display = ''; gErr.textContent = 'GF ошибка: ' + data.errors.google;
+      document.getElementById('gf_price').textContent = '—';
+      document.getElementById('gf_ts').textContent = '—';
+      document.getElementById('gf_link').href = '#';
+      document.getElementById('gf_spread_bin').textContent = '—';
+      document.getElementById('gf_spread_byb').textContent = '—';
+    } else if (data.google){
+      gErr.style.display = 'none';
+      const g = data.google;
+      document.getElementById('gf_price').textContent = fmtShort(g.price) + ' ' + p.fiat;
+      document.getElementById('gf_ts').textContent = 'TS: ' + new Date(g.ts*1000).toLocaleTimeString('ru-RU');
+      document.getElementById('gf_link').href = g.url || '#';
+      const s1 = ((data.binance?.avg ?? null) === null) ? null : ((data.binance.avg - g.price) / g.price * 100);
+      const s2 = ((data.bybit?.avg ?? null) === null) ? null : ((data.bybit.avg - g.price) / g.price * 100);
+      document.getElementById('gf_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
+      document.getElementById('gf_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
+    }
 
-      // Пересчитать спреды для XE (если уже получен)
-      if (window.__lastXePrice != null){
-        const base = window.__lastXePrice;
-        const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
-        const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
-        document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
-        document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
-      }
-    } finally {
-      hideLoading();
+    if (window.__lastXePrice != null){
+      const base = window.__lastXePrice;
+      const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
+      const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
+      document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
+      document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
     }
   }
 
-  // ------- XE: отдельная загрузка -------
-  window.__lastXePrice = null;
-
-  function xePairFromUI(){
-    return { from: xeFrom, to: xeTo };
-  }
-
-  async function loadXE(){
-    showLoading();
+  async function fillXeCodes(){
     try{
-      const pr = xePairFromUI();
-      const err = document.getElementById('xe_error');
-
-      if (!pr || !pr.from || !pr.to || pr.from === pr.to){
-        err.style.display = '';
-        err.textContent = 'Выберите корректные XE From и XE To (разные валюты).';
-        document.getElementById('xe_pair').textContent = '—';
+      const r = await fetch('/api/xe/codes');
+      const js = await r.json();
+      const list = (js.codes||[]).sort();
+      const dl = document.getElementById('xe_codes');
+      dl.innerHTML = '';
+      list.forEach(code => {
+        const opt = document.createElement('option');
+        opt.value = code; dl.appendChild(opt);
+      });
+      if (!document.getElementById('xe_from').value) document.getElementById('xe_from').value = 'USD';
+      if (!document.getElementById('xe_to').value)   document.getElementById('xe_to').value   = document.getElementById('fiat').value || 'UAH';
+    }catch(e){}
+  }
+  function currentXePair(){
+    const f = (document.getElementById('xe_from').value||'').toUpperCase().trim();
+    const t = (document.getElementById('xe_to').value||'').toUpperCase().trim();
+    if (!f || !t) return null; return {from:f, to:t};
+  }
+  function applyXE(){
+    refreshXENow();
+    const pr = currentXePair();
+    if (pr) history.replaceState(null, '', '?' + new URLSearchParams({...Object.fromEntries(new URLSearchParams(location.search)), xe_from:pr.from, xe_to:pr.to}).toString());
+  }
+  async function loadXE(){
+    const pr = currentXePair();
+    const err = document.getElementById('xe_error');
+    if (!pr){
+      err.style.display = ''; err.textContent = 'Укажите пары XE (From/To).';
+      return;
+    }
+    const url = '/api/xe?' + new URLSearchParams({from: pr.from, to: pr.to}).toString();
+    try{
+      const r = await fetch(url);
+      const js = await r.json();
+      document.getElementById('xe_pair').textContent = `${pr.from}-${pr.to}`;
+      if (!js.ok){
+        err.style.display = ''; err.textContent = 'Ошибка XE: ' + (js.error || 'unknown');
         document.getElementById('xe_price').textContent = '—';
         document.getElementById('xe_ts').textContent = '—';
         document.getElementById('xe_src').textContent = '—';
         document.getElementById('xe_link').href = '#';
-        document.getElementById('xe_spread_bin').textContent = '—';
-        document.getElementById('xe_spread_byb').textContent = '—';
         window.__lastXePrice = null;
         return;
       }
+      err.style.display = 'none';
+      const d = js.data;
+      document.getElementById('xe_price').textContent = fmtSmart(d.price) + ' ' + pr.to;
+      document.getElementById('xe_ts').textContent = 'TS: ' + new Date(d.ts*1000).toLocaleTimeString('ru-RU');
+      document.getElementById('xe_src').textContent = d.source || 'xe';
+      document.getElementById('xe_link').href = d.url || '#';
+      window.__lastXePrice = d.price;
 
-      const url = '/api/xe?' + new URLSearchParams({amount:'1', from: pr.from, to: pr.to}).toString();
-      try{
-        const r = await fetch(url);
-        const js = await r.json();
+      const base = d.price;
+      const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
+      const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
+      document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
+      document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
 
-        document.getElementById('xe_pair').textContent = `${pr.from}-${pr.to}`;
-
-        if (!js.ok){
-          err.style.display = '';
-          err.textContent = 'Ошибка XE: ' + (js.error || 'unknown');
-          document.getElementById('xe_price').textContent = '—';
-          document.getElementById('xe_ts').textContent = '—';
-          document.getElementById('xe_src').textContent = '—';
-          document.getElementById('xe_link').href = '#';
-          window.__lastXePrice = null;
-          return;
-        }
-
-        err.style.display = 'none';
-        const d = js.data;
-        document.getElementById('xe_price').textContent = fmtShort(d.price) + ' ' + pr.to;
-        document.getElementById('xe_ts').textContent = 'TS: ' + new Date(d.ts*1000).toLocaleTimeString('ru-RU');
-        document.getElementById('xe_src').textContent = (d.source || 'n/a') + (d.hydrated ? ' · hydrated' : '');
-        document.getElementById('xe_link').href = d.url || '#';
-
-        window.__lastXePrice = d.price;
-
-        const base = d.price;
-        const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
-        const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
-        document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
-        document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
-
-      }catch(e){
-        err.style.display = '';
-        err.textContent = 'Ошибка сети/парсинга XE';
-        window.__lastXePrice = null;
-      }
-    } finally {
-      hideLoading();
+    }catch(e){
+      err.style.display = ''; err.textContent = 'Ошибка сети/парсинга XE';
+      window.__lastXePrice = null;
     }
   }
 
-  // ------- Применить/обновить -------
-  function refreshNow(){
-    load();
-    if (timer) clearInterval(timer);
-    timer = setInterval(load, REFRESH_MS);
-  }
-  function refreshXENow(){
-    loadXE();
-    if (xeTimer) clearInterval(xeTimer);
-    xeTimer = setInterval(loadXE, XE_REFRESH_MS);
-  }
-  function apply(ev){ ev.preventDefault(); applyFiltersFromCurrent(); }
-  function applyFiltersFromCurrent(){
-    refreshNow();
-    refreshXENow();
-    const p = paramsFromUI();
-    history.replaceState(null, '', '?' + new URLSearchParams(p).toString());
-  }
+  function refreshNow(){ load(); if (timer) clearInterval(timer); timer = setInterval(load, REFRESH_MS); }
+  function refreshXENow(){ loadXE(); if (xeTimer) clearInterval(xeTimer); xeTimer = setInterval(loadXE, XE_REFRESH_MS); }
+  function apply(ev){ ev.preventDefault(); refreshNow(); refreshXENow(); }
 
-  // --- wiring для мультидропа подтверждение/сброс
-  function wireDropdown(ddId){
-    const root = document.getElementById(ddId);
-    if (!root) return;
-    const menu = root.querySelector('.mdrop-menu');
-    if (!menu || menu.__wired) return;
-
-    menu.addEventListener('click', (e) => {
-      e.stopPropagation();
-
-      if (e.target.closest('.js-confirm')){
-        if (ddId==='dd_binance') selectedBinance = new Set([...tempSelected[ddId]]);
-        if (ddId==='dd_bybit')   selectedBybit   = new Set([...tempSelected[ddId]]);
-        updateCounters();
-        applyFiltersFromCurrent();
-        closeAllDropdowns();
-        return;
-      }
-
-      if (e.target.closest('.js-reset')){
-        tempSelected[ddId] = new Set();
-        renderDropdownOptions(ddId);
-        const cntSpan = document.getElementById(ddId === 'dd_binance' ? 'dd_binance_count' : 'dd_bybit_count');
-        if (cntSpan) cntSpan.textContent = '0';
-        return;
-      }
-    });
-
-    menu.__wired = true;
-  }
-
-  // Инициализация
   window.addEventListener('DOMContentLoaded', async () => {
-    // из URL
+    await fillXeCodes();
+
     const q = new URLSearchParams(location.search);
-    for (const id of ['asset','fiat','side','amount']){
-      const v = q.get(id); if (v!==null) document.getElementById(id).value = v;
-    }
+    const xf = q.get('xe_from'); const xt = q.get('xe_to');
+    if (xf) document.getElementById('xe_from').value = xf;
+    if (xt) document.getElementById('xe_to').value   = xt;
 
-    // восстановление мультивыбора из URL
-    const bcsv = q.get('paytypes_binance'); if (bcsv){ bcsv.split(',').forEach(x => x && selectedBinance.add(x)); }
-    const ycsv = q.get('payments_bybit');   if (ycsv){ ycsv.split(',').forEach(x => x && selectedBybit.add(x)); }
-
-    // XE: начальные значения (если в URL есть from/to — опционально)
-    const fromURL = q.get('xe_from'); if (fromURL) xeFrom = fromURL.toUpperCase();
-    const toURL   = q.get('xe_to');   if (toURL)   xeTo   = toURL.toUpperCase();
-
-    // навесим обработчики drop-меню
-    wireDropdown('dd_binance');
-    wireDropdown('dd_bybit');
-
-    await loadXeSymbols();
     await loadBinancePaytypes();
     await loadBybitPayments();
     updateCounters();
@@ -1395,7 +1190,6 @@ PAGE = """
     document.getElementById('fiat').addEventListener('change', () => { loadBinancePaytypes(); loadBybitPayments(); refreshNow(); });
     document.getElementById('side').addEventListener('change', () => { loadBinancePaytypes(); refreshNow(); });
     document.getElementById('amount').addEventListener('change', () => { loadBinancePaytypes(); refreshNow(); });
-
     document.getElementById('merchant_binance')?.addEventListener('change', () => { loadBinancePaytypes(); refreshNow(); });
     document.getElementById('verified_bybit')?.addEventListener('change', () => { refreshNow(); });
 
@@ -1416,13 +1210,13 @@ PAGE = """
 def index():
     return Response(PAGE, mimetype="text/html; charset=utf-8")
 
+@app.route("/api/xe/codes")
+def xe_codes_api():
+    return jsonify({"ok": True, "codes": XE_CODES})
+
 @app.route("/healthz")
 def healthz():
     return "ok"
 
 if __name__ == "__main__":
-    # Запуск: (обязательно с валидными куками в окружении, если нужно)
-    # set BINANCE_COOKIE=...
-    # set BYBIT_COOKIE=...
-    # python p2p_dashboard.py
     app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
