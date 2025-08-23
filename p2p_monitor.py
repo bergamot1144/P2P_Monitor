@@ -79,46 +79,59 @@ NUMBER_RE = re.compile(r"(?:\d{1,3}(?:[,   ]\d{3})+|\d+)(?:[.,]\d+)?")
 def _normalize_number_string(s: str) -> str:
     """Нормализует строку числа к стандартному виду для Decimal."""
     s = (s or "").strip()
-    # убрать все «узкие/несущие» пробелы
+    # NBSP/узкий NBSP → обычный пробел → убрать все пробелы
     s = s.replace("\u00A0", " ").replace("\u202F", " ")
-    s = re.sub(r"\s+", "", s)  # убрать любые пробелы
+    s = re.sub(r"\s+", "", s)
 
-    # Если присутствуют и ',' и '.', выбираем крайний правый как десятичный,
-    # остальные удаляем как разделители тысяч
-    if "," in s and "." in s:
-        last_dot = s.rfind(".")
+    has_comma = "," in s
+    has_dot   = "." in s
+
+    if has_comma and has_dot:
+        # Правый символ — десятичный
         last_comma = s.rfind(",")
+        last_dot   = s.rfind(".")
         if last_dot > last_comma:
-            # десятичный — точка, запятые убираем
+            # десятичная точка, запятые — тысячные
             s = s.replace(",", "")
         else:
-            # десятичный — запятая, точки убираем
+            # десятичная запятая, точки — тысячные
             s = s.replace(".", "")
             s = s.replace(",", ".")
-    else:
-        # Только один из символов . или ,
-        if "," in s:
-            if s.count(",") > 1:
-                # несколько заптых — это тысячные группы
-                s = s.replace(",", "")
+        return s
+
+    if has_comma:
+        if s.count(",") > 1:
+            # Несколько запятых: попробуем последнюю как десятичную, остальные — тысячные
+            pos = s.rfind(",")
+            left = s[:pos].replace(",", "")
+            right = s[pos+1:]
+            s = left + "." + right
+        else:
+            # Одна запятая — считаем её десятичной
+            s = s.replace(",", ".")
+        return s
+
+    if has_dot:
+        if s.count(".") > 1:
+            # Несколько точек:
+            parts = s.split(".")
+            # Проверим «чистые тысячные» (все группы по 3, первая ≤3)
+            if all(i == 0 or len(p) == 3 for i, p in enumerate(parts)) and len(parts[-1]) == 3:
+                # 1.234.567 → 1234567
+                s = "".join(parts)
             else:
-                # одна запятая: если после неё ровно 3 цифры — вероятно тысячная группа
-                idx = s.rfind(",")
-                decimals_len = len(s) - idx - 1
-                if decimals_len == 3:
-                    s = s.replace(",", "")
-                else:
-                    s = s.replace(",", ".")
-        # только точки
-        elif "." in s:
-            if s.count(".") > 1:
-                s = s.replace(".", "")
-            else:
-                idx = s.rfind(".")
-                decimals_len = len(s) - idx - 1
-                if decimals_len == 3:
-                    s = s.replace(".", "")
-                # иначе оставляем точку как десятичную
+                # Последняя — десятичная, остальные — тысячные
+                pos = s.rfind(".")
+                left = s[:pos].replace(".", "")
+                right = s[pos+1:]
+                s = left + "." + right
+        else:
+            # Одна точка — всегда десятичная
+            # (исправление: НЕ удаляем точку даже если после неё 3 цифры)
+            pass
+        return s
+
+    # Нет разделителей — вернём как есть
     return s
 
 def to_decimal(num_str: str) -> Decimal:
