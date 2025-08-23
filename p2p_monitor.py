@@ -537,7 +537,15 @@ def api_xe():
 @app.route("/api/xe/codes")
 def api_xe_codes():
     return jsonify({"ok": True, "codes": XE_CODES})
-
+@app.route("/api/gf_rate")
+def api_gf_rate():
+    asset = request.args.get("asset", "USD").upper()
+    fiat  = request.args.get("fiat", "UAH").upper()
+    try:
+        data = fetch_gf(asset, fiat)
+        return jsonify({"ok": True, **data})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
 @app.route("/api/rates")
 def api_rates():
     asset  = request.args.get("asset", "USDT").upper()
@@ -620,6 +628,7 @@ PAGE = """
   @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
   .footer{ position:fixed; right:20px; bottom:15px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); opacity:.85; }
   .footer img{ width:28px; height:28px; object-fit:contain; }
+  .loader{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); border-radius:16px; }
 
   .mdrop { position: relative; display:inline-block; width:100%; }
   .mdrop-btn { width:100%; text-align:left; display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -684,6 +693,7 @@ PAGE = """
   <div class="grid">
     <!-- Binance -->
     <div class="card" id="binance_card">
+      <div class="loader" id="binance_loader">Загрузка...</div>
       <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
         <h2 style="margin:0;">Binance</h2>
         <button class="btn-small" type="button" onclick="toggleFilters('binance_filters', this)">Фильтры</button>
@@ -731,6 +741,7 @@ PAGE = """
 
     <!-- Bybit -->
     <div class="card" id="bybit_card">
+      <div class="loader" id="bybit_loader">Загрузка...</div>
       <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
         <h2 style="margin:0;">Bybit</h2>
         <button class="btn-small" type="button" onclick="toggleFilters('bybit_filters', this)">Фильтры</button>
@@ -781,8 +792,12 @@ PAGE = """
   <div class="grid">
     <!-- XE -->
     <div class="card" id="xe_card">
-      <h2 style="margin:0 0 8px;">XE.com <span id="xe_pair" class="muted"></span></h2>
-      <div class="row">
+        <div class="loader" id="xe_loader">Загрузка...</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+        <h2 style="margin:0;">XE.com <span id="xe_pair" class="muted"></span></h2>
+        <button class="btn-small" type="button" onclick="toggleFilters('xe_filters', this)">Фильтры</button>
+      </div>
+      <div class="row" id="xe_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
         <div>
           <label>XE From</label>
           <input id="xe_from" list="xe_codes" placeholder="например, USD" />
@@ -813,7 +828,26 @@ PAGE = """
 
     <!-- Google Finance -->
     <div class="card" id="gf_card">
-      <h2 style="margin:0 0 8px;">Google Finance <span id="gf_pair" class="muted"></span></h2>
+      <div class="loader" id="gf_loader">Загрузка...</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+        <h2 style="margin:0;">Google Finance <span id="gf_pair" class="muted"></span></h2>
+        <button class="btn-small" type="button" onclick="toggleFilters('gf_filters', this)">Фильтры</button>
+      </div>
+      <div class="row" id="gf_filters" style="display:none; border-top:1px dashed var(--border); padding-top:12px;">
+        <div>
+          <label>GF From</label>
+          <input id="gf_from" list="gf_codes" placeholder="например, USD" />
+        </div>
+        <div>
+          <label>GF To</label>
+          <input id="gf_to" list="gf_codes" placeholder="например, EUR" />
+        </div>
+        <div style="align-self:end">
+          <button class="btn-small" type="button" onclick="applyGF()">Применить GF</button>
+          <button class="btn-small" type="button" onclick="refreshGFNow()">Обновить GF</button>
+        </div>
+      </div>
+      <datalist id="gf_codes"></datalist>
       <div id="gf_error" class="error" style="display:none"></div>
       <div class="rate" id="gf_price">—</div>
       <div class="muted">
@@ -830,10 +864,12 @@ PAGE = """
 
 <script>
   let timer = null; const REFRESH_MS = 30000;
-  let xeTimer = null; const XE_REFRESH_MS = 15000;
+  let xeTimer = null; const XE_REFRESH_MS = 30000;
+  let gfTimer = null; const GF_REFRESH_MS = 30000;
 
   let lastBinanceAvg = null;
   let lastBybitAvg   = null;
+  let lastGfPrice    = null;
   window.__lastXePrice = null;
 
   let selectedBinance = new Set();
@@ -851,6 +887,24 @@ PAGE = """
   }
   function fmt(n){ return Number(n).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:6}); }
   function fmtShort(n){ return Number(n).toLocaleString('ru-RU', {maximumFractionDigits:6}); }
+  function showLoader(id){ const el = document.getElementById(id); if (el) el.style.display='flex'; }
+  function hideLoader(id){ const el = document.getElementById(id); if (el) el.style.display='none'; }
+
+  function updateSpreads(){
+    if (lastGfPrice != null){
+      const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - lastGfPrice) / lastGfPrice * 100);
+      const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - lastGfPrice) / lastGfPrice * 100);
+      document.getElementById('gf_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
+      document.getElementById('gf_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
+    }
+    if (window.__lastXePrice != null){
+      const base = window.__lastXePrice;
+      const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
+      const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
+      document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
+      document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
+    }
+  }
 
   function toggleFilters(id, btn){
     const el = document.getElementById(id);
@@ -1019,88 +1073,87 @@ PAGE = """
     };
   }
 
-  async function load(){
+  async function loadBinance(){
     const p = paramsFromUI();
-    const url = '/api/rates?' + new URLSearchParams(p).toString();
-    const res = await fetch(url);
-    let data = null;
-    try { data = await res.json(); } catch(e){ data = {ok:false, errors:{fetch:'Bad JSON'}} }
-
-    document.getElementById('ts').textContent = '• обновлено: ' + new Date().toLocaleTimeString('ru-RU');
-
-    const bErr = document.getElementById('binance_error');
-    const bOk  = document.getElementById('binance_status');
-    if (data.errors && data.errors.binance){
-      bErr.style.display = ''; bErr.textContent = 'Ошибка: ' + data.errors.binance;
-      bOk.style.display = 'none';
+    const url = '/api/binance_rate?' + new URLSearchParams({asset:p.asset, fiat:p.fiat, side:p.side, amount:p.amount, paytypes:p.paytypes_binance, merchant:p.merchant_binance}).toString();
+    showLoader('binance_loader');
+    try{
+      const res = await fetch(url);
+      const data = await res.json();
+      const bErr = document.getElementById('binance_error');
+      const bOk  = document.getElementById('binance_status');
+      if (!data.ok){
+        bErr.style.display = ''; bErr.textContent = 'Ошибка: ' + (data.error || 'unknown');
+        bOk.style.display = 'none';
+        document.getElementById('binance_avg').textContent = '—';
+        document.getElementById('binance_prices').textContent = '—';
+        document.getElementById('binance_tbody').innerHTML = '';
+        lastBinanceAvg = null;
+      } else {
+        bErr.style.display = 'none'; bOk.style.display = '';
+        document.getElementById('binance_avg').textContent = (data.avg!=null? fmt(data.avg):'—') + ' ' + p.fiat;
+        document.getElementById('binance_prices').textContent = data.prices && data.prices.length ? ('#3–5: ' + data.prices.slice(2,5).map(fmt).join(' • ')) : '—';
+        const tb = document.getElementById('binance_tbody'); tb.innerHTML = '';
+        (data.items||[]).forEach((it, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
+          tb.appendChild(tr);
+        });
+        lastBinanceAvg = data.avg ?? null;
+      }
+    }catch(e){
+      const bErr = document.getElementById('binance_error');
+      bErr.style.display = ''; bErr.textContent = 'Ошибка сети';
+      document.getElementById('binance_status').style.display = 'none';
       document.getElementById('binance_avg').textContent = '—';
       document.getElementById('binance_prices').textContent = '—';
       document.getElementById('binance_tbody').innerHTML = '';
       lastBinanceAvg = null;
-    } else if (data.binance){
-      bErr.style.display = 'none'; bOk.style.display = '';
-      const d = data.binance;
-      document.getElementById('binance_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
-      document.getElementById('binance_prices').textContent = d.prices && d.prices.length ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
-      const tb = document.getElementById('binance_tbody'); tb.innerHTML = '';
-      (d.items||[]).forEach((it, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
-        tb.appendChild(tr);
-      });
-      lastBinanceAvg = d.avg ?? null;
+        } finally {
+          hideLoader('binance_loader');
+          updateSpreads();
+        }
     }
 
-    const yErr = document.getElementById('bybit_error');
-    const yOk  = document.getElementById('bybit_status');
-    if (data.errors && data.errors.bybit){
-      yErr.style.display = ''; yErr.textContent = 'Ошибка: ' + data.errors.bybit;
-      yOk.style.display = 'none';
+    async function loadBybit(){
+    const p = paramsFromUI();
+    const url = '/api/bybit_rate?' + new URLSearchParams({asset:p.asset, fiat:p.fiat, side:p.side, amount:p.amount, payments:p.payments_bybit, verified:p.verified_bybit}).toString();
+    showLoader('bybit_loader');
+    try{
+      const res = await fetch(url);
+      const data = await res.json();
+      const yErr = document.getElementById('bybit_error');
+      const yOk  = document.getElementById('bybit_status');
+      if (!data.ok){
+        yErr.style.display = ''; yErr.textContent = 'Ошибка: ' + (data.error || 'unknown');
+        yOk.style.display = 'none';
+        document.getElementById('bybit_avg').textContent = '—';
+        document.getElementById('bybit_prices').textContent = '—';
+        document.getElementById('bybit_tbody').innerHTML = '';
+        lastBybitAvg = null;
+      } else {
+        yErr.style.display = 'none'; yOk.style.display = '';
+        document.getElementById('bybit_avg').textContent = (data.avg!=null? fmt(data.avg):'—') + ' ' + p.fiat;
+        document.getElementById('bybit_prices').textContent = data.prices && data.prices.length ? ('#3–5: ' + data.prices.slice(2,5).map(fmt).join(' • ')) : '—';
+        const tb = document.getElementById('bybit_tbody'); tb.innerHTML = '';
+        (data.items||[]).forEach((it, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
+          tb.appendChild(tr);
+        });
+        lastBybitAvg = data.avg ?? null;
+      }
+    }catch(e){
+      const yErr = document.getElementById('bybit_error');
+      yErr.style.display = ''; yErr.textContent = 'Ошибка сети';
+      document.getElementById('bybit_status').style.display = 'none';
       document.getElementById('bybit_avg').textContent = '—';
       document.getElementById('bybit_prices').textContent = '—';
       document.getElementById('bybit_tbody').innerHTML = '';
       lastBybitAvg = null;
-    } else if (data.bybit){
-      yErr.style.display = 'none'; yOk.style.display = '';
-      const d = data.bybit;
-      document.getElementById('bybit_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
-      document.getElementById('bybit_prices').textContent = d.prices && d.prices.length ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
-      const tb = document.getElementById('bybit_tbody'); tb.innerHTML = '';
-      (d.items||[]).forEach((it, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
-        tb.appendChild(tr);
-      });
-      lastBybitAvg = d.avg ?? null;
-    }
-
-    const gErr = document.getElementById('gf_error');
-    document.getElementById('gf_pair').textContent = `${p.asset}-${p.fiat}`;
-    if (data.errors && data.errors.google){
-      gErr.style.display = ''; gErr.textContent = 'GF ошибка: ' + data.errors.google;
-      document.getElementById('gf_price').textContent = '—';
-      document.getElementById('gf_ts').textContent = '—';
-      document.getElementById('gf_link').href = '#';
-      document.getElementById('gf_spread_bin').textContent = '—';
-      document.getElementById('gf_spread_byb').textContent = '—';
-    } else if (data.google){
-      gErr.style.display = 'none';
-      const g = data.google;
-      document.getElementById('gf_price').textContent = fmtShort(g.price) + ' ' + p.fiat;
-      document.getElementById('gf_ts').textContent = 'TS: ' + new Date(g.ts*1000).toLocaleTimeString('ru-RU');
-      document.getElementById('gf_link').href = g.url || '#';
-      const s1 = ((data.binance?.avg ?? null) === null) ? null : ((data.binance.avg - g.price) / g.price * 100);
-      const s2 = ((data.bybit?.avg ?? null) === null) ? null : ((data.bybit.avg - g.price) / g.price * 100);
-      document.getElementById('gf_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
-      document.getElementById('gf_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
-    }
-
-    if (window.__lastXePrice != null){
-      const base = window.__lastXePrice;
-      const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
-      const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
-      document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
-      document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
+    } finally {
+      hideLoader('bybit_loader');
+      updateSpreads();
     }
   }
 
@@ -1110,13 +1163,16 @@ PAGE = """
       const js = await r.json();
       const list = (js.codes||[]).sort();
       const dl = document.getElementById('xe_codes');
-      dl.innerHTML = '';
+      const dl2 = document.getElementById('gf_codes');
+      dl.innerHTML = ''; dl2.innerHTML = '';
       list.forEach(code => {
-        const opt = document.createElement('option');
-        opt.value = code; dl.appendChild(opt);
+        const opt1 = document.createElement('option'); opt1.value = code; dl.appendChild(opt1);
+        const opt2 = document.createElement('option'); opt2.value = code; dl2.appendChild(opt2);
       });
       if (!document.getElementById('xe_from').value) document.getElementById('xe_from').value = 'USD';
       if (!document.getElementById('xe_to').value)   document.getElementById('xe_to').value   = document.getElementById('fiat').value || 'UAH';
+      if (!document.getElementById('gf_from').value) document.getElementById('gf_from').value = 'USD';
+      if (!document.getElementById('gf_to').value)   document.getElementById('gf_to').value   = document.getElementById('fiat').value || 'UAH';
     }catch(e){}
   }
   function currentXePair(){
@@ -1137,6 +1193,7 @@ PAGE = """
       return;
     }
     const url = '/api/xe?' + new URLSearchParams({from: pr.from, to: pr.to}).toString();
+    showLoader('xe_loader');
     try{
       const r = await fetch(url);
       const js = await r.json();
@@ -1147,40 +1204,100 @@ PAGE = """
         document.getElementById('xe_ts').textContent = '—';
         document.getElementById('xe_src').textContent = '—';
         document.getElementById('xe_link').href = '#';
+        document.getElementById('xe_spread_bin').textContent = '—';
+        document.getElementById('xe_spread_byb').textContent = '—';
         window.__lastXePrice = null;
-        return;
+        } else {
+        err.style.display = 'none';
+        const d = js.data;
+        document.getElementById('xe_price').textContent = fmtSmart(d.price) + ' ' + pr.to;
+        document.getElementById('xe_ts').textContent = 'TS: ' + new Date(d.ts*1000).toLocaleTimeString('ru-RU');
+        document.getElementById('xe_src').textContent = d.source || 'xe';
+        document.getElementById('xe_link').href = d.url || '#';
+        window.__lastXePrice = d.price;
       }
-      err.style.display = 'none';
-      const d = js.data;
-      document.getElementById('xe_price').textContent = fmtSmart(d.price) + ' ' + pr.to;
-      document.getElementById('xe_ts').textContent = 'TS: ' + new Date(d.ts*1000).toLocaleTimeString('ru-RU');
-      document.getElementById('xe_src').textContent = d.source || 'xe';
-      document.getElementById('xe_link').href = d.url || '#';
-      window.__lastXePrice = d.price;
-
-      const base = d.price;
-      const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
-      const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
-      document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
-      document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
-
     }catch(e){
       err.style.display = ''; err.textContent = 'Ошибка сети/парсинга XE';
+       document.getElementById('xe_spread_bin').textContent = '—';
+      document.getElementById('xe_spread_byb').textContent = '—';
       window.__lastXePrice = null;
+      } finally {
+      hideLoader('xe_loader');
+      updateSpreads();
+
     }
   }
 
-  function refreshNow(){ load(); if (timer) clearInterval(timer); timer = setInterval(load, REFRESH_MS); }
+  function currentGfPair(){
+    const f = (document.getElementById('gf_from').value||'').toUpperCase().trim();
+    const t = (document.getElementById('gf_to').value||'').toUpperCase().trim();
+    if (!f || !t) return null; return {from:f, to:t};
+  }
+  function applyGF(){
+    refreshGFNow();
+    const pr = currentGfPair();
+    if (pr) history.replaceState(null, '', '?' + new URLSearchParams({...Object.fromEntries(new URLSearchParams(location.search)), gf_from:pr.from, gf_to:pr.to}).toString());
+  }
+  async function loadGF(){
+    const pr = currentGfPair();
+    const gErr = document.getElementById('gf_error');
+    if (!pr){
+      gErr.style.display = ''; gErr.textContent = 'Укажите пары GF (From/To).';
+      return;
+    }
+    document.getElementById('gf_pair').textContent = `${pr.from}-${pr.to}`;
+    const url = '/api/gf_rate?' + new URLSearchParams({asset: pr.from, fiat: pr.to}).toString();
+    showLoader('gf_loader');
+    try{
+      const r = await fetch(url);
+      const js = await r.json();
+      if (!js.ok){
+        gErr.style.display = ''; gErr.textContent = 'GF ошибка: ' + (js.error || 'unknown');
+        document.getElementById('gf_price').textContent = '—';
+        document.getElementById('gf_ts').textContent = '—';
+        document.getElementById('gf_link').href = '#';
+        document.getElementById('gf_spread_bin').textContent = '—';
+        document.getElementById('gf_spread_byb').textContent = '—';
+        lastGfPrice = null;
+      } else {
+        gErr.style.display = 'none';
+        document.getElementById('gf_price').textContent = fmtShort(js.price) + ' ' + pr.to;
+        document.getElementById('gf_ts').textContent = 'TS: ' + new Date(js.ts*1000).toLocaleTimeString('ru-RU');
+        document.getElementById('gf_link').href = js.url || '#';
+        lastGfPrice = js.price;
+      }
+    }catch(e){
+      gErr.style.display = ''; gErr.textContent = 'Ошибка сети/парсинга GF';
+      document.getElementById('gf_spread_bin').textContent = '—';
+      document.getElementById('gf_spread_byb').textContent = '—';
+      lastGfPrice = null;
+    } finally {
+      hideLoader('gf_loader');
+      updateSpreads();
+    }
+  }
+  function refreshGFNow(){ loadGF(); if (gfTimer) clearInterval(gfTimer); gfTimer = setInterval(loadGF, GF_REFRESH_MS); }
+
+  function refreshNow(){
+    loadBinance();
+    loadBybit();
+    document.getElementById('ts').textContent = '• обновлено: ' + new Date().toLocaleTimeString('ru-RU');
+    if (timer) clearInterval(timer);
+    timer = setInterval(() => { loadBinance(); loadBybit(); document.getElementById('ts').textContent = '• обновлено: ' + new Date().toLocaleTimeString('ru-RU'); }, REFRESH_MS);
+  }
   function refreshXENow(){ loadXE(); if (xeTimer) clearInterval(xeTimer); xeTimer = setInterval(loadXE, XE_REFRESH_MS); }
-  function apply(ev){ ev.preventDefault(); refreshNow(); refreshXENow(); }
+  function apply(ev){ ev.preventDefault(); refreshNow(); refreshXENow(); refreshGFNow(); }
 
   window.addEventListener('DOMContentLoaded', async () => {
     await fillXeCodes();
 
     const q = new URLSearchParams(location.search);
     const xf = q.get('xe_from'); const xt = q.get('xe_to');
+    const gfF = q.get('gf_from'); const gfT = q.get('gf_to');
     if (xf) document.getElementById('xe_from').value = xf;
     if (xt) document.getElementById('xe_to').value   = xt;
+    if (gfF) document.getElementById('gf_from').value = gfF;
+    if (gfT) document.getElementById('gf_to').value   = gfT;
 
     await loadBinancePaytypes();
     await loadBybitPayments();
@@ -1195,6 +1312,7 @@ PAGE = """
 
     refreshNow();
     refreshXENow();
+    refreshGFNow();
   });
 </script>
 
