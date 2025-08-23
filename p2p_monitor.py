@@ -669,9 +669,22 @@ PAGE = """
   .mdrop-foot button:first-child:hover { border-color:#244a33; background:#14301f; }
   .mdrop-foot button:last-child { border-color:#2a1f21; background:#231317; }
   .mdrop-foot button:last-child:hover { border-color:#3a2a2d; background:#2a171c; }
+
+  /* Overlay loader */
+  #loading{
+    position:fixed; inset:0; background:rgba(0,0,0,.4);
+    display:none; align-items:center; justify-content:center; z-index:999;
+  }
+  .loader{
+    width:48px; height:48px; border:5px solid rgba(255,255,255,.3);
+    border-top-color:#fff; border-radius:50%; animation:spin 1s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
 </style>
 </head>
 <body>
+<div id="loading"><div class="loader"></div></div>
 <div class="wrap">
   <h1>P2P Dashboard <span class="muted" id="ts"></span></h1>
 
@@ -907,7 +920,20 @@ PAGE = """
 
   function fmt(n){ return Number(n).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:6}); }
   function fmtShort(n){ return Number(n).toLocaleString('ru-RU', {maximumFractionDigits:6}); }
-
+  // Loader overlay
+  let activeLoads = 0;
+  function showLoading(){
+    if (++activeLoads === 1){
+      const el = document.getElementById('loading');
+      if (el) el.style.display = 'flex';
+    }
+  }
+  function hideLoading(){
+    if (activeLoads > 0 && --activeLoads === 0){
+      const el = document.getElementById('loading');
+      if (el) el.style.display = 'none';
+    }
+  }
   // ------- Параметры / загрузка -------
   function paramsFromUI(){
     return {
@@ -1127,91 +1153,96 @@ PAGE = """
 
   // ------- Загрузка данных -------
   async function load(){
-    const p = paramsFromUI();
-    const url = '/api/rates?' + new URLSearchParams(p).toString();
-    const res = await fetch(url);
-    let data = null;
-    try { data = await res.json(); } catch(e){ data = {ok:false, errors:{fetch:'Bad JSON'}} }
+    showLoading();
+    try{
+      const p = paramsFromUI();
+      const url = '/api/rates?' + new URLSearchParams(p).toString();
+      const res = await fetch(url);
+      let data = null;
+      try { data = await res.json(); } catch(e){ data = {ok:false, errors:{fetch:'Bad JSON'}} }
 
-    document.getElementById('ts').textContent = ' • обновлено: ' + new Date().toLocaleTimeString('ru-RU');
+      document.getElementById('ts').textContent = ' • обновлено: ' + new Date().toLocaleTimeString('ru-RU');
 
-    // Google Finance
-    document.getElementById('gf_pair').textContent = `${p.asset}-${p.fiat}`;
-    const gErr = document.getElementById('gf_error');
-    if (data.errors && data.errors.google){
-      gErr.style.display = ''; gErr.textContent = 'GF ошибка: ' + data.errors.google;
-      document.getElementById('gf_price').textContent = '—';
-      document.getElementById('gf_ts').textContent = '—';
-      document.getElementById('gf_link').href = '#';
-      document.getElementById('gf_spread_bin').textContent = '—';
-      document.getElementById('gf_spread_byb').textContent = '—';
-    } else if (data.google){
-      gErr.style.display = 'none';
-      const g = data.google;
-      document.getElementById('gf_price').textContent = fmtShort(g.price) + ' ' + p.fiat;
-      document.getElementById('gf_ts').textContent = 'TS: ' + new Date(g.ts*1000).toLocaleTimeString('ru-RU');
-      document.getElementById('gf_link').href = g.url || '#';
-      const s1 = ((data.binance?.avg ?? null) === null) ? null : ((data.binance.avg - g.price) / g.price * 100);
-      const s2 = ((data.bybit?.avg ?? null) === null) ? null : ((data.bybit.avg - g.price) / g.price * 100);
-      document.getElementById('gf_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
-      document.getElementById('gf_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
-    }
+      // Google Finance
+      document.getElementById('gf_pair').textContent = `${p.asset}-${p.fiat}`;
+      const gErr = document.getElementById('gf_error');
+      if (data.errors && data.errors.google){
+        gErr.style.display = ''; gErr.textContent = 'GF ошибка: ' + data.errors.google;
+        document.getElementById('gf_price').textContent = '—';
+        document.getElementById('gf_ts').textContent = '—';
+        document.getElementById('gf_link').href = '#';
+        document.getElementById('gf_spread_bin').textContent = '—';
+        document.getElementById('gf_spread_byb').textContent = '—';
+      } else if (data.google){
+        gErr.style.display = 'none';
+        const g = data.google;
+        document.getElementById('gf_price').textContent = fmtShort(g.price) + ' ' + p.fiat;
+        document.getElementById('gf_ts').textContent = 'TS: ' + new Date(g.ts*1000).toLocaleTimeString('ru-RU');
+        document.getElementById('gf_link').href = g.url || '#';
+        const s1 = ((data.binance?.avg ?? null) === null) ? null : ((data.binance.avg - g.price) / g.price * 100);
+        const s2 = ((data.bybit?.avg ?? null) === null) ? null : ((data.bybit.avg - g.price) / g.price * 100);
+        document.getElementById('gf_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
+        document.getElementById('gf_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
+      }
 
-    // Binance
-    const bErr = document.getElementById('binance_error');
-    const bOk  = document.getElementById('binance_status');
-    if (data.errors && data.errors.binance){
-      bErr.style.display = ''; bErr.textContent = 'Ошибка: ' + data.errors.binance;
-      bOk.style.display = 'none';
-      document.getElementById('binance_avg').textContent = '—';
-      document.getElementById('binance_prices').textContent = '—';
-      document.getElementById('binance_tbody').innerHTML = '';
-      lastBinanceAvg = null;
-    } else if (data.binance){
-      bErr.style.display = 'none'; bOk.style.display = '';
-      const d = data.binance;
-      document.getElementById('binance_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
-      document.getElementById('binance_prices').textContent = d.prices && d.prices.length >= 3 ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
-      const tb = document.getElementById('binance_tbody'); tb.innerHTML = '';
-      (d.items||[]).forEach((it, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
-        tb.appendChild(tr);
-      });
-      lastBinanceAvg = d.avg ?? null;
-    }
+      // Binance
+      const bErr = document.getElementById('binance_error');
+      const bOk  = document.getElementById('binance_status');
+      if (data.errors && data.errors.binance){
+        bErr.style.display = ''; bErr.textContent = 'Ошибка: ' + data.errors.binance;
+        bOk.style.display = 'none';
+        document.getElementById('binance_avg').textContent = '—';
+        document.getElementById('binance_prices').textContent = '—';
+        document.getElementById('binance_tbody').innerHTML = '';
+        lastBinanceAvg = null;
+      } else if (data.binance){
+        bErr.style.display = 'none'; bOk.style.display = '';
+        const d = data.binance;
+        document.getElementById('binance_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
+        document.getElementById('binance_prices').textContent = d.prices && d.prices.length >= 3 ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
+        const tb = document.getElementById('binance_tbody'); tb.innerHTML = '';
+        (d.items||[]).forEach((it, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
+          tb.appendChild(tr);
+        });
+        lastBinanceAvg = d.avg ?? null;
+      }
 
-    // Bybit
-    const yErr = document.getElementById('bybit_error');
-    const yOk  = document.getElementById('bybit_status');
-    if (data.errors && data.errors.bybit){
-      yErr.style.display = ''; yErr.textContent = 'Ошибка: ' + data.errors.bybit;
-      yOk.style.display = 'none';
-      document.getElementById('bybit_avg').textContent = '—';
-      document.getElementById('bybit_prices').textContent = '—';
-      document.getElementById('bybit_tbody').innerHTML = '';
-      lastBybitAvg = null;
-    } else if (data.bybit){
-      yErr.style.display = 'none'; yOk.style.display = '';
-      const d = data.bybit;
-      document.getElementById('bybit_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
-      document.getElementById('bybit_prices').textContent = d.prices && d.prices.length >= 3 ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
-      const tb = document.getElementById('bybit_tbody'); tb.innerHTML = '';
-      (d.items||[]).forEach((it, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
-        tb.appendChild(tr);
-      });
-      lastBybitAvg = d.avg ?? null;
-    }
+      // Bybit
+      const yErr = document.getElementById('bybit_error');
+      const yOk  = document.getElementById('bybit_status');
+      if (data.errors && data.errors.bybit){
+        yErr.style.display = ''; yErr.textContent = 'Ошибка: ' + data.errors.bybit;
+        yOk.style.display = 'none';
+        document.getElementById('bybit_avg').textContent = '—';
+        document.getElementById('bybit_prices').textContent = '—';
+        document.getElementById('bybit_tbody').innerHTML = '';
+        lastBybitAvg = null;
+      } else if (data.bybit){
+        yErr.style.display = 'none'; yOk.style.display = '';
+        const d = data.bybit;
+        document.getElementById('bybit_avg').textContent = (d.avg!=null? fmt(d.avg):'—') + ' ' + p.fiat;
+        document.getElementById('bybit_prices').textContent = d.prices && d.prices.length >= 3 ? ('#3–5: ' + d.prices.slice(2,5).map(fmt).join(' • ')) : '—';
+        const tb = document.getElementById('bybit_tbody'); tb.innerHTML = '';
+        (d.items||[]).forEach((it, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${i+1}</td><td>${it.name||'-'}</td><td>${fmt(it.price)}</td><td>${it.volume??'-'}</td><td>${it.min??'-'}</td><td>${it.max??'-'}</td>`;
+          tb.appendChild(tr);
+        });
+        lastBybitAvg = d.avg ?? null;
+      }
 
-    // Пересчитать спреды для XE (если уже получен)
-    if (window.__lastXePrice != null){
-      const base = window.__lastXePrice;
-      const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
-      const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
-      document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
-      document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
+      // Пересчитать спреды для XE (если уже получен)
+      if (window.__lastXePrice != null){
+        const base = window.__lastXePrice;
+        const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
+        const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
+        document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
+        document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
+      }
+    } finally {
+      hideLoading();
     }
   }
 
@@ -1223,60 +1254,65 @@ PAGE = """
   }
 
   async function loadXE(){
-    const pr = xePairFromUI();
-    const err = document.getElementById('xe_error');
-
-    if (!pr || !pr.from || !pr.to || pr.from === pr.to){
-      err.style.display = '';
-      err.textContent = 'Выберите корректные XE From и XE To (разные валюты).';
-      document.getElementById('xe_pair').textContent = '—';
-      document.getElementById('xe_price').textContent = '—';
-      document.getElementById('xe_ts').textContent = '—';
-      document.getElementById('xe_src').textContent = '—';
-      document.getElementById('xe_link').href = '#';
-      document.getElementById('xe_spread_bin').textContent = '—';
-      document.getElementById('xe_spread_byb').textContent = '—';
-      window.__lastXePrice = null;
-      return;
-    }
-
-    const url = '/api/xe?' + new URLSearchParams({amount:'1', from: pr.from, to: pr.to}).toString();
+    showLoading();
     try{
-      const r = await fetch(url);
-      const js = await r.json();
+      const pr = xePairFromUI();
+      const err = document.getElementById('xe_error');
 
-      document.getElementById('xe_pair').textContent = `${pr.from}-${pr.to}`;
-
-      if (!js.ok){
+      if (!pr || !pr.from || !pr.to || pr.from === pr.to){
         err.style.display = '';
-        err.textContent = 'Ошибка XE: ' + (js.error || 'unknown');
+        err.textContent = 'Выберите корректные XE From и XE To (разные валюты).';
+        document.getElementById('xe_pair').textContent = '—';
         document.getElementById('xe_price').textContent = '—';
         document.getElementById('xe_ts').textContent = '—';
         document.getElementById('xe_src').textContent = '—';
         document.getElementById('xe_link').href = '#';
+        document.getElementById('xe_spread_bin').textContent = '—';
+        document.getElementById('xe_spread_byb').textContent = '—';
         window.__lastXePrice = null;
         return;
       }
 
-      err.style.display = 'none';
-      const d = js.data;
-      document.getElementById('xe_price').textContent = fmtShort(d.price) + ' ' + pr.to;
-      document.getElementById('xe_ts').textContent = 'TS: ' + new Date(d.ts*1000).toLocaleTimeString('ru-RU');
-      document.getElementById('xe_src').textContent = (d.source || 'n/a') + (d.hydrated ? ' · hydrated' : '');
-      document.getElementById('xe_link').href = d.url || '#';
+      const url = '/api/xe?' + new URLSearchParams({amount:'1', from: pr.from, to: pr.to}).toString();
+      try{
+        const r = await fetch(url);
+        const js = await r.json();
 
-      window.__lastXePrice = d.price;
+        document.getElementById('xe_pair').textContent = `${pr.from}-${pr.to}`;
 
-      const base = d.price;
-      const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
-      const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
-      document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
-      document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
+        if (!js.ok){
+          err.style.display = '';
+          err.textContent = 'Ошибка XE: ' + (js.error || 'unknown');
+          document.getElementById('xe_price').textContent = '—';
+          document.getElementById('xe_ts').textContent = '—';
+          document.getElementById('xe_src').textContent = '—';
+          document.getElementById('xe_link').href = '#';
+          window.__lastXePrice = null;
+          return;
+        }
 
-    }catch(e){
-      err.style.display = '';
-      err.textContent = 'Ошибка сети/парсинга XE';
-      window.__lastXePrice = null;
+        err.style.display = 'none';
+        const d = js.data;
+        document.getElementById('xe_price').textContent = fmtShort(d.price) + ' ' + pr.to;
+        document.getElementById('xe_ts').textContent = 'TS: ' + new Date(d.ts*1000).toLocaleTimeString('ru-RU');
+        document.getElementById('xe_src').textContent = (d.source || 'n/a') + (d.hydrated ? ' · hydrated' : '');
+        document.getElementById('xe_link').href = d.url || '#';
+
+        window.__lastXePrice = d.price;
+
+        const base = d.price;
+        const s1 = (lastBinanceAvg==null) ? null : ((lastBinanceAvg - base) / base * 100);
+        const s2 = (lastBybitAvg==null)   ? null : ((lastBybitAvg - base) / base * 100);
+        document.getElementById('xe_spread_bin').innerHTML = s1==null ? '—' : ((s1>0?'+':'') + s1.toFixed(2) + '%');
+        document.getElementById('xe_spread_byb').innerHTML = s2==null ? '—' : ((s2>0?'+':'') + s2.toFixed(2) + '%');
+
+      }catch(e){
+        err.style.display = '';
+        err.textContent = 'Ошибка сети/парсинга XE';
+        window.__lastXePrice = null;
+      }
+    } finally {
+      hideLoading();
     }
   }
 
