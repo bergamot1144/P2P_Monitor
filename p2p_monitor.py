@@ -44,7 +44,7 @@ def index():
     return render_template("index.html")
 
 # ====================== Заголовки/куки P2P ======================
-BINANCE_COOKIE = os.getenv("BINANCE_COOKIE", "")
+BINANCE_COOKIE = os.getenv("BINANCE_COOKIE", "bnc-uuid=24e155f9-acda-4066-940b-4885f4bb5d9b; BNC_FV_KEY=3352998e0fcbaf35a8c1adc76cbdf4f92046cec1; se_gd=xkBEAQR9QBKDwhbYQUwogZZUwUA0QBXVlsSJYV091NRWgCFNWV9V1; se_gsd=azM2GhpVJiklM1syJyUyGggnEAcODgVUVFVKWlFSVlNXElNT1; BNC-Location=UA; userPreferredCurrency=USD_USD; theme=dark; lang=ru-UA; language=ru-UA; se_sd=g0SBRB10SRACQoAQOAQQgZZChDldVEUWlcHVfVEZ1RTVwGVNWV4P1; currentAccount=; logined=y; fiat-prefer-currency=UAH; common_fiat=%7B%22fiat%22%3A%22UAH%22%7D; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%22320158455%22%2C%22first_id%22%3A%221980ece448a22b-0e104b4a3c8a8-26011151-3686400-1980ece448b17c0%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E8%87%AA%E7%84%B6%E6%90%9C%E7%B4%A2%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC%22%2C%22%24latest_referrer%22%3A%22https%3A%2F%2Fwww.google.com%2F%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTk4MGVjZTQ0OGEyMmItMGUxMDRiNGEzYzhhOC0yNjAxMTE1MS0zNjg2NDAwLTE5ODBlY2U0NDhiMTdjMCIsIiRpZGVudGl0eV9sb2dpbl9pZCI6IjMyMDE1ODQ1NSJ9%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%24identity_login_id%22%2C%22value%22%3A%22320158455%22%7D%2C%22%24device_id%22%3A%2219812922cb61f0-0f815e9aa74ba48-26011151-3686400-19812922cb7f7f%22%7D; BNC_FV_KEY_T=101-sS2hVro%2BJ06pjyDHAs2Mly9iBnbk3ZJm0T6S6YjrqirvBLie7NZ76QLvECXJhndsRcmqXOFh9DhKZacqw3pPvw%3D%3D-XlQEtbdEscN%2F0RJ5mAXFgw%3D%3D-dc; BNC_FV_KEY_EXPIRE=1756210181035; r20t=web.EA2CB6FEE8AF3CEDB25CA68DF1A247DF; r30t=1; cr00=CAD6E635218EE0E48BBDF0E4F23AFC48; d1og=web.320158455.0628CCE7479F3127A0EB040F14851A88; r2o1=web.320158455.8275488D5B5300738298D479051DBD1B; f30l=web.320158455.9F2467221E5683A27BA3F84BC256093E; p20t=web.320158455.3B345F06030FF8EF298A5D6F9F0EAF19; OptanonConsent=isGpcEnabled=0&datestamp=Tue+Aug+26+2025+09%3A21%3A24+GMT%2B0300+(%D0%92%D0%BE%D1%81%D1%82%D0%BE%D1%87%D0%BD%D0%B0%D1%8F+%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B0%2C+%D0%BB%D0%B5%D1%82%D0%BD%D0%B5%D0%B5+%D0%B2%D1%80%D0%B5%D0%BC%D1%8F)&version=202506.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=6d9ed745-85d2-457b-8d07-1040687ff23d&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=C0001%3A1%2CC0003%3A1%2CC0004%3A0%2CC0002%3A1&AwaitingReconsent=false; _h_desk_key=539256391450436f9fa315059f988f68")
 BYBIT_COOKIE   = os.getenv("BYBIT_COOKIE", "")
 
 BINANCE_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
@@ -207,24 +207,60 @@ def fetch_gf(asset: str, fiat: str) -> Dict:
     return {"pair": f"{asset.upper()}-{fiat.upper()}", "price": float(p), "url": url, "ts": int(time.time())}
 
 # ====================== Binance ================================
-def fetch_binance(asset="USDT", fiat="UAH", side="SELL", pay_types=None, amount="20000", rows=10, merchant=True, page=1):
+def fetch_binance(
+    asset="USDT",
+    fiat="UAH",
+    side="SELL",
+    pay_types=None,
+    amount="20000",
+    rows=10,
+    merchant=True,
+    page=1,
+):
+    """
+    merchant=True  -> отбираем только верифицированных продавцов/мерчантов:
+                      - publisherType: "merchant"
+                      - merchantCheck: True
+    """
+    # важный флаг: вместе с merchantCheck даём и publisherType
+    publisher_type = "merchant" if merchant else None
+
     payload = {
-        "asset": asset, "fiat": fiat, "merchantCheck": bool(merchant),
-        "page": int(page), "payTypes": list(pay_types or []),
-        "publisherType": None, "rows": int(rows),
-        "tradeType": side, "transAmount": str(amount),
+        "asset": asset,
+        "fiat": fiat,
+        "tradeType": side,
+        "transAmount": str(amount),
+        "page": int(page),
+        "rows": int(rows),
+
+        # фильтры оплаты и страны
+        "payTypes": list(pay_types or []),
+        "countries": [],
+
+        # ключевые флаги для мерчантов
+        "merchantCheck": bool(merchant),
+        "publisherType": publisher_type,
+
+        # фиксируем эти флаги в False, чтобы не «перекрывать» выдачу
+        "proMerchantAds": False,
+        "shieldMerchantAds": False,
+
+        # нейтральный режим
+        "filterType": "all",
     }
+
     r = requests.post(BINANCE_URL, headers=BINANCE_HEADERS, json=payload, timeout=15)
     r.raise_for_status()
     js = r.json()
     if js.get("code") != "000000" or "data" not in js:
         raise RuntimeError(f"Binance API error: {js}")
+
     data = js["data"] or []
     items, prices = [], []
     for ad in data[:5]:
         adv = ad.get("adv") or {}
         seller = (ad.get("advertiser") or {}).get("nickName") or "-"
-        price  = _d(adv.get("price"))
+        price = _d(adv.get("price"))
         if price is None:
             continue
         items.append({
@@ -235,17 +271,50 @@ def fetch_binance(asset="USDT", fiat="UAH", side="SELL", pay_types=None, amount=
             "volume": adv.get("surplusAmount"),
         })
         prices.append(price)
-    avg = _avg_3_5(prices)
-    return {"items": items, "prices": [float(x) for x in prices], "avg": (float(avg) if avg is not None else None)}
 
-def discover_binance_paytypes(asset="USDT", fiat="UAH", side="SELL", amount="20000", merchant=True, pages=2, rows=20):
+    avg = _avg_3_5(prices)
+    return {
+        "items": items,
+        "prices": [float(x) for x in prices],
+        "avg": (float(avg) if avg is not None else None),
+    }
+
+def discover_binance_paytypes(
+    asset="USDT",
+    fiat="UAH",
+    side="SELL",
+    amount="20000",
+    merchant=True,
+    pages=2,
+    rows=20,
+):
+    """
+    Собираем список методов оплаты с тем же фильтром мерчантов.
+    """
     seen = {}
-    for p in range(1, pages+1):
+    publisher_type = "merchant" if merchant else None
+
+    for p in range(1, pages + 1):
         payload = {
-            "asset": asset, "fiat": fiat, "merchantCheck": bool(merchant),
-            "page": p, "payTypes": [], "publisherType": None,
-            "rows": int(rows), "tradeType": side, "transAmount": str(amount),
+            "asset": asset,
+            "fiat": fiat,
+            "tradeType": side,
+            "transAmount": str(amount),
+            "page": p,
+            "rows": int(rows),
+
+            "payTypes": [],
+            "countries": [],
+
+            "merchantCheck": bool(merchant),
+            "publisherType": publisher_type,
+
+            "proMerchantAds": False,
+            "shieldMerchantAds": False,
+
+            "filterType": "all",
         }
+
         r = requests.post(BINANCE_URL, headers=BINANCE_HEADERS, json=payload, timeout=15)
         if r.status_code != 200:
             break
@@ -255,16 +324,23 @@ def discover_binance_paytypes(asset="USDT", fiat="UAH", side="SELL", amount="200
         data = js.get("data", []) or []
         if not data:
             break
+
         for ad in data:
             adv = ad.get("adv", {}) or {}
+
+            # методы внутри объявления (tradeMethods)
             for tm in adv.get("tradeMethods", []) or []:
                 ident = (tm.get("identifier") or tm.get("payType") or "").strip()
-                name  = (tm.get("tradeMethodName") or tm.get("name") or ident).strip()
+                name = (tm.get("tradeMethodName") or tm.get("name") or ident).strip()
                 if ident:
                     seen[ident] = name
+
+            # иногда бинанс дублирует отдельным массивом payTypes
             for ident in ad.get("payTypes", []) or []:
+                ident = (ident or "").strip()
                 if ident and ident not in seen:
                     seen[ident] = ident
+
     items = [{"id": k, "name": v} for k, v in seen.items()]
     items.sort(key=lambda x: (x["name"].lower(), x["id"]))
     return items

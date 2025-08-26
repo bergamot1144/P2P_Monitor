@@ -24,13 +24,16 @@
     <Compile Include="P2P_monitor.py" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="static\icons\" />
     <Folder Include="templates\" />
     <Folder Include="static\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="static\app.js" />
+    <Content Include="static\icons\Dark_theme.svg" />
     <Content Include="templates\index.html" />
     <Content Include="static\style.css" />
+    <Content Include="static\icons\White_theme.svg" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

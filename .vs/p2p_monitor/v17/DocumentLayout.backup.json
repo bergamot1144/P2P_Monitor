@@ -11,12 +11,20 @@
       "RelativeMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|solutionrelative:static\\style.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\P2P_monitor.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|solutionrelative:P2P_monitor.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\static\\app.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|solutionrelative:static\\app.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\P2P_monitor.py||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|solutionrelative:P2P_monitor.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+      "AbsoluteMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\static\\icons\\White_theme.svg||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|solutionrelative:static\\icons\\White_theme.svg||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\static\\icons\\Dark_theme.svg||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{93F20178-C33A-4DA3-B2A9-817516A18DAD}|P2P_monitor.pyproj|solutionrelative:static\\icons\\Dark_theme.svg||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
     }
   ],
   "DocumentGroupContainers": [
@@ -26,8 +34,34 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 6,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "White_theme.svg",
+              "DocumentMoniker": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\static\\icons\\White_theme.svg",
+              "RelativeDocumentMoniker": "static\\icons\\White_theme.svg",
+              "ToolTip": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\static\\icons\\White_theme.svg",
+              "RelativeToolTip": "static\\icons\\White_theme.svg",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001533|",
+              "WhenOpened": "2025-08-26T07:56:19.055Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Dark_theme.svg",
+              "DocumentMoniker": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\static\\icons\\Dark_theme.svg",
+              "RelativeDocumentMoniker": "static\\icons\\Dark_theme.svg",
+              "ToolTip": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\static\\icons\\Dark_theme.svg",
+              "RelativeToolTip": "static\\icons\\Dark_theme.svg",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001533|",
+              "WhenOpened": "2025-08-26T07:56:15.995Z",
+              "EditorCaption": ""
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
@@ -38,13 +72,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "app.js",
               "DocumentMoniker": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\static\\app.js",
               "RelativeDocumentMoniker": "static\\app.js",
               "ToolTip": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\static\\app.js",
               "RelativeToolTip": "static\\app.js",
-              "ViewState": "AgIAADwBAAAAAAAAAAAqwFIBAAAPAAAAAAAAAA==",
+              "ViewState": "AgIAALQAAAAAAAAAAAAAAMoAAABIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-08-23T20:10:43.916Z",
               "EditorCaption": ""
@@ -57,7 +91,7 @@
               "RelativeDocumentMoniker": "static\\style.css",
               "ToolTip": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\static\\style.css",
               "RelativeToolTip": "static\\style.css",
-              "ViewState": "AgIAACICAAAAAAAAAAAqwDgCAAABAAAAAAAAAA==",
+              "ViewState": "AgIAANsBAAAAAAAAAAAuwPsBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003000|",
               "WhenOpened": "2025-08-23T20:10:25.795Z",
               "EditorCaption": ""
@@ -68,22 +102,22 @@
               "Title": "index.html",
               "DocumentMoniker": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\templates\\index.html",
               "RelativeDocumentMoniker": "templates\\index.html",
-              "ToolTip": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\templates\\index.html*",
-              "RelativeToolTip": "templates\\index.html*",
-              "ViewState": "AgIAAAEBAAAAAAAAAAAAAAgBAAAWAAAAAAAAAA==",
+              "ToolTip": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\templates\\index.html",
+              "RelativeToolTip": "templates\\index.html",
+              "ViewState": "AgIAAF0AAAAAAAAAAAAkwDgAAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001512|",
               "WhenOpened": "2025-08-23T20:10:16.859Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 2,
               "Title": "P2P_monitor.py",
               "DocumentMoniker": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\p2p_monitor.py",
               "RelativeDocumentMoniker": "p2p_monitor.py",
               "ToolTip": "C:\\Users\\Bergamot\\Desktop\\p2p_monitor\\p2p_monitor.py",
               "RelativeToolTip": "p2p_monitor.py",
-              "ViewState": "AgIAAGgAAAAAAAAAAAAwwIcAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAABVAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
               "WhenOpened": "2025-08-22T04:49:59.194Z",
               "EditorCaption": ""
