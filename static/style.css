@@ -180,7 +180,7 @@ h1 {
 .group-filters {
     margin: 6px 0 8px;
     padding: 6px;
-    border: 1px dashed var(--border);
+    border: 1px hidden var(--border);
     border-radius: 12px;
 }
 
@@ -217,6 +217,38 @@ h1 {
     display: flex;
     gap: 8px;
 }
+/* Базовый переход для всех кнопок */
+button {
+    transition: all 0.2s ease-in-out;
+}
+
+    /* Ховер для обычных кнопок (например, Применить) */
+    button:hover:not(.btn-ghost) {
+        background: color-mix(in oklab, var(--bg2) 70%, var(--accent) 20%);
+        border-color: color-mix(in oklab, var(--border) 40%, var(--accent));
+        box-shadow: 0 0 8px rgba(34,197,94,.4);
+        transform: translateY(-1px);
+    }
+
+    button:active:not(.btn-ghost) {
+        transform: translateY(0);
+        box-shadow: 0 0 4px rgba(34,197,94,.3) inset;
+    }
+
+/* Специальный ховер для кнопки Обновить (.btn-ghost) */
+.btn-ghost:hover {
+    background: color-mix(in oklab, var(--bg2) 85%, var(--fg) 10%);
+    border-color: var(--border);
+    box-shadow: 0 0 6px rgba(255,255,255,.1) inset;
+    transform: translateY(-1px);
+}
+
+.btn-ghost:active {
+    transform: translateY(0);
+    box-shadow: 0 0 3px rgba(255,255,255,.15) inset;
+}
+
+
 
 .row-inline {
     display: flex;
@@ -505,3 +537,145 @@ button {
     .collapse[aria-hidden="false"] {
         display: block;
     }
+
+  
+
+/* затемнение фона */
+#__mdrop_overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(1px);
+  z-index: 2147483646; /* поверх всего */
+  display: none;       /* JS включает/выключает */
+}
+
+/* контейнер для меню */
+#__mdrop_portal {
+  position: fixed;
+  z-index: 2147483647; /* ещё выше */
+  display: none;
+}
+
+/* собственно карточка меню */
+#__mdrop_portal .mdrop-fly {
+  position: fixed;
+  min-width: 320px;
+  max-width: 520px;
+  max-height: 420px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* шапка/поиск, тело и фут как у вас */
+#__mdrop_portal .mdrop-fly .mdrop-head {
+  position: sticky; top: 0;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 8px;
+}
+#__mdrop_portal .mdrop-fly .mdrop-body {
+  padding: 10px;
+  overflow: auto;
+}
+#__mdrop_portal .mdrop-fly .mdrop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 10px;
+}
+#__mdrop_portal .mdrop-fly .mdrop-foot {
+  position: sticky; bottom: 0;
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 8px;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+}
+
+/* активная карточка поднимается над соседями */
+.card.raised { z-index: 10000; }
+
+/* вид «плиток» с активным состоянием */
+.mdrop-pill {
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+.mdrop-pill:hover {
+  background: color-mix(in oklab, var(--bg2) 50%, var(--accent) 8%);
+  border-color: color-mix(in oklab, var(--border) 60%, var(--accent));
+}
+.mdrop-pill.active {
+  background: color-mix(in oklab, var(--bg2) 70%, var(--accent) 18%);
+  border-color: color-mix(in oklab, var(--border) 20%, var(--accent) 80%);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 50%, transparent);
+}
+
+/* кнопки «Подтвердить/Сбросить» (минимал) */
+.mdrop .js-confirm,
+#__mdrop_portal .js-confirm {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgb(26, 78, 51);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 12px;
+}
+.mdrop .js-reset,
+#__mdrop_portal .js-reset {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 12px;
+}
+/* Фолбэк: встроенное меню скрыто по умолчанию, видно только когда .mdrop.open */
+.mdrop .mdrop-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 320px;
+    max-width: 520px;
+    max-height: 420px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    flex-direction: column;
+    z-index: 10000;
+}
+
+.mdrop.open .mdrop-menu {
+    display: flex;
+}
+/* отметка избранных методов */
+.mdrop-pill.fav {
+    /* можно слегка подсветить контур */
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+.mdrop-pill .fav-star {
+    font-size: 12px;
+    margin-right: 6px;
+    opacity: .9;
+    /* в светлой теме можно чуть затемнить */
+    color: color-mix(in oklab, var(--accent) 85%, var(--fg));
+}

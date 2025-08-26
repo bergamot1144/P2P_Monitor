@@ -30,6 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="static\app.js" />
+    <Content Include="static\icons\corona_extra.svg" />
     <Content Include="static\icons\Dark_theme.svg" />
     <Content Include="templates\index.html" />
     <Content Include="static\style.css" />
